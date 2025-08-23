@@ -1,27 +1,34 @@
 require("dotenv").config();
 const express = require("express");
 const { getConnection } = require("./db");
+const runMigrations = require("./migrationRunner");
 const app = express();
 const port = 3000;
 
-app.get("/", (req, res) => {
-  res.send("Hello World!");
-});
+async function startServer() {
+  await runMigrations();
 
-// Test OracleDB connection endpoint
-app.get("/dbtest", async (req, res) => {
-  try {
-    const conn = await getConnection();
-    const result = await conn.execute(
-      "SELECT 'Connected to Oracle!' AS message FROM dual"
-    );
-    await conn.close();
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+  app.get("/", (req, res) => {
+    res.send("Hello World!");
+  });
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+  // Test OracleDB connection endpoint
+  app.get("/dbtest", async (req, res) => {
+    try {
+      const conn = await getConnection();
+      const result = await conn.execute(
+        "SELECT 'Connected to Oracle!' AS message FROM dual"
+      );
+      await conn.close();
+      res.json(result.rows[0]);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.listen(port, () => {
+    console.log(`Server is running on http://localhost:${port}`);
+  });
+}
+
+startServer();

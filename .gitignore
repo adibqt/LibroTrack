@@ -1,3 +1,8 @@
 # Ignore node_modules in all directories
 node_modules/
 .env
+# Ignore log and temp files
+*.log
+*.tmp
+# Do NOT ignore migration scripts or schema files
+# /server/migrations/*.sql and /server/librotrack_schema.sql should be tracked
