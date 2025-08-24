@@ -26,6 +26,20 @@ async function startServer() {
     }
   });
 
+  // List tables in current schema
+  app.get("/db/tables", async (req, res) => {
+    try {
+      const conn = await getConnection();
+      const r = await conn.execute(
+        "SELECT table_name FROM user_tables ORDER BY table_name"
+      );
+      await conn.close();
+      res.json(r.rows.map((row) => row[0]));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
   });
