@@ -12,6 +12,10 @@ async function startServer() {
     res.send("Hello World!");
   });
 
+  // Catalog API routes
+  const catalogRoutes = require("./routes/catalog");
+  app.use("/api/catalog", catalogRoutes);
+
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {
     try {
