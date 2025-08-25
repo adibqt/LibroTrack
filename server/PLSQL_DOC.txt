@@ -1,0 +1,217 @@
+# LibroTrack PL/SQL Documentation
+
+This document provides comprehensive documentation for all PL/SQL procedures, functions, and triggers used in the LibroTrack database. Each entry includes a description, usage, parameters, affected tables, and additional notes.
+
+---
+
+## 1. Procedure: register_user
+**Description:**
+Registers a new user in the system after checking for unique username/email and hashes the password.
+
+**Parameters:**
+- p_username (IN, VARCHAR2): Username for the new user.
+- p_email (IN, VARCHAR2): Email address for the new user.
+- p_password (IN, VARCHAR2): Plaintext password (will be hashed).
+- p_first_name (IN, VARCHAR2): First name.
+- p_last_name (IN, VARCHAR2): Last name.
+- p_phone (IN, VARCHAR2, optional): Phone number.
+- p_address (IN, VARCHAR2, optional): Address.
+- p_user_id (OUT, NUMBER): Returns the new user ID.
+
+**Affected Tables:**
+- users
+
+**Usage Example:**
+DECLARE
+  v_user_id NUMBER;
+BEGIN
+  register_user('john_doe', 'john@example.com', 'Password@123', 'John', 'Doe', NULL, NULL, v_user_id);
+END;
+
+**Notes:**
+- Fails if username or email already exists.
+- Password is hashed using MD5 (not recommended for production).
+
+---
+
+## 2. Function: validate_password
+**Description:**
+Checks if a password meets security requirements (min 8 chars, upper, lower, digit, special char).
+
+**Parameters:**
+- p_password (IN, VARCHAR2): Password to validate.
+
+**Returns:**
+- BOOLEAN: TRUE if valid, FALSE otherwise.
+
+**Usage Example:**
+SELECT validate_password('Password@123') FROM DUAL;
+
+**Notes:**
+- Special characters allowed: ! @ # $ % ^ & *
+
+---
+
+## 3. Procedure: add_book
+**Description:**
+Adds a new book to the library, links authors, and sets initial copy counts.
+
+**Parameters:**
+- p_isbn (IN, VARCHAR2): Book ISBN.
+- p_title (IN, VARCHAR2): Book title.
+- p_category_id (IN, NUMBER): Category ID (must exist).
+- p_author_ids (IN, SYS.ODCINUMBERLIST): List of author IDs.
+- p_publication_year (IN, NUMBER, optional): Year of publication.
+- p_publisher (IN, VARCHAR2, optional): Publisher name.
+- p_total_copies (IN, NUMBER, default 1): Number of copies.
+- p_book_id (OUT, NUMBER): Returns new book ID.
+
+**Affected Tables:**
+- books
+- book_authors
+
+**Usage Example:**
+DECLARE
+  v_book_id NUMBER;
+BEGIN
+  add_book('978-3-16-148410-0', 'Sample Book', 1, SYS.ODCINUMBERLIST(1,2), 2020, 'Sample Publisher', 3, v_book_id);
+END;
+
+**Notes:**
+- Fails if ISBN already exists or category is invalid.
+
+---
+
+## 4. Procedure: borrow_book
+**Description:**
+Allows a user to borrow a book if eligible and copies are available.
+
+**Parameters:**
+- p_user_id (IN, NUMBER): User ID.
+- p_book_id (IN, NUMBER): Book ID.
+- p_processed_by (IN, NUMBER): Librarian/Admin ID.
+- p_transaction_id (OUT, NUMBER): Returns transaction ID (not implemented in code, but declared).
+
+**Affected Tables:**
+- books
+- users
+
+**Usage Example:**
+DECLARE
+  v_transaction_id NUMBER;
+BEGIN
+  borrow_book(1, 10, 2, v_transaction_id);
+END;
+
+**Notes:**
+- Checks user status, borrowing limits, and book availability.
+- Updates available copies and user's borrowed count.
+
+---
+
+## 5. Procedure: return_book
+**Description:**
+Handles book return, calculates overdue fines, and updates records.
+
+**Parameters:**
+- p_transaction_id (IN, NUMBER): Transaction ID (should reference a borrow record).
+- p_processed_by (IN, NUMBER): Librarian/Admin ID.
+- p_condition (IN, VARCHAR2, default 'GOOD'): Book condition on return.
+
+**Affected Tables:**
+- books
+- users
+- fines
+
+**Usage Example:**
+BEGIN
+  return_book(1001, 2, 'GOOD');
+END;
+
+**Notes:**
+- Calculates overdue fines and inserts into fines if needed.
+- Updates available copies and user's borrowed count.
+
+---
+
+## 6. Trigger: trg_books_availability_check
+**Description:**
+Ensures available copies in books table never exceed total or go negative.
+
+**Event:**
+- BEFORE UPDATE ON books
+
+**Affected Table:**
+- books
+
+**Notes:**
+- Raises error if constraints are violated.
+
+---
+
+## 7. Trigger: trg_auto_fulfill_reservation
+**Description:**
+Automatically fulfills the oldest pending reservation when a book's available copies increase.
+
+**Event:**
+- AFTER UPDATE ON books (when available_copies increases)
+
+**Affected Tables:**
+- reservations
+
+**Notes:**
+- Updates reservation status to 'FULFILLED' and notifies user.
+
+---
+
+## 8. Function: calculate_fine
+**Description:**
+Calculates overdue fine based on due date, return date, and daily rate.
+
+**Parameters:**
+- p_due_date (IN, DATE): Due date for return.
+- p_return_date (IN, DATE, default SYSDATE): Actual return date.
+- p_daily_rate (IN, NUMBER, default 1): Fine per day.
+
+**Returns:**
+- NUMBER: Fine amount.
+
+**Usage Example:**
+SELECT calculate_fine(DATE '2023-08-01', DATE '2023-08-10', 2) FROM DUAL;
+
+---
+
+## 9. Function: is_book_available
+**Description:**
+Checks if a book is available for borrowing.
+
+**Parameters:**
+- p_book_id (IN, NUMBER): Book ID.
+
+**Returns:**
+- BOOLEAN: TRUE if available, FALSE otherwise.
+
+**Usage Example:**
+SELECT is_book_available(10) FROM DUAL;
+
+---
+
+## 10. Function: is_user_eligible_to_borrow
+**Description:**
+Checks if a user is eligible to borrow more books (active, under limit, fines below threshold).
+
+**Parameters:**
+- p_user_id (IN, NUMBER): User ID.
+
+**Returns:**
+- BOOLEAN: TRUE if eligible, FALSE otherwise.
+
+**Usage Example:**
+SELECT is_user_eligible_to_borrow(1) FROM DUAL;
+
+**Notes:**
+- User must be ACTIVE, under borrowing limit, and have fines below $50.
+
+---
+
+# End of PL/SQL Documentation
