@@ -36,7 +36,8 @@ async function getAppliedMigrations(conn) {
 async function runMigrations() {
   const files = fs
     .readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"));
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
   let conn;
   try {
     conn = await oracledb.getConnection(dbConfig);
@@ -45,38 +46,77 @@ async function runMigrations() {
     for (const file of files) {
       if (!applied.includes(file)) {
         const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), "utf8");
-        // Split on semicolon at end of line (handles ; with or without newline)
-        // Split on semicolon followed by optional whitespace and a line ending or end of file
-        // Split into PL/SQL blocks (ending with / on its own line) and regular SQL (ending with ;)
+        // Build executable statements while preserving newlines so -- comments don't swallow SQL
+        // Handle:
+        //  - PL/SQL blocks delimited by a single '/' on its own line
+        //  - Regular SQL statements terminated by ';' at end of line
+        //  - Skip line and block comments outside PL/SQL blocks
         const blocks = [];
         let buffer = [];
         const lines = sql.split(/\r?\n/);
         let inPlsql = false;
+        let inBlockComment = false; // /* ... */
         for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
+          let line = lines[i];
+
+          // Track/strip block comments when not inside PL/SQL
+          if (!inPlsql) {
+            if (inBlockComment) {
+              if (/\*\//.test(line)) {
+                inBlockComment = false;
+                line = line.replace(/^.*?\*\//, "");
+              } else {
+                continue; // still inside block comment
+              }
+            }
+            // Start of block comment
+            if (/\/\*/.test(line)) {
+              inBlockComment = true;
+              // remove from /* to end-of-line
+              line = line.replace(/\/\*.*$/, "");
+            }
+            // Remove single-line comments
+            line = line.replace(/--.*$/, "");
+          }
+
           if (
-            /^\s*CREATE OR REPLACE (PROCEDURE|FUNCTION|TRIGGER)/i.test(line)
+            /^\s*CREATE\s+OR\s+REPLACE\s+(PROCEDURE|FUNCTION|TRIGGER)\b/i.test(
+              line
+            )
           ) {
             inPlsql = true;
             buffer.push(line);
-          } else if (inPlsql && /^\s*\/$/.test(line)) {
-            // End of PL/SQL block
-            blocks.push(buffer.join("\n"));
+            continue;
+          }
+
+          if (inPlsql && /^\s*\/$/.test(line)) {
+            // End of PL/SQL block, push the block as-is (preserve newlines)
+            const stmt = buffer.join("\n").trim();
+            if (stmt) blocks.push(stmt);
             buffer = [];
             inPlsql = false;
-          } else if (inPlsql) {
+            continue;
+          }
+
+          if (inPlsql) {
             buffer.push(line);
-          } else if (/;\s*$/.test(line)) {
-            // End of regular SQL statement
-            buffer.push(line);
-            blocks.push(buffer.join(" "));
+            continue;
+          }
+
+          // Outside PL/SQL: collect regular SQL until semicolon at end of line
+          if (/;\s*$/.test(line)) {
+            const withoutTerminator = line.replace(/;\s*$/, "");
+            buffer.push(withoutTerminator);
+            const stmt = buffer.join("\n").trim();
+            if (stmt) blocks.push(stmt);
             buffer = [];
           } else if (line.trim() !== "") {
             buffer.push(line);
           }
         }
         if (buffer.length > 0) {
-          blocks.push(buffer.join(" "));
+          const tail = buffer.join("\n").trim();
+          if (tail) blocks.push(tail);
         }
 
         let allSucceeded = true;
