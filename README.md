@@ -2,8 +2,15 @@
 [![CSE 4410](https://img.shields.io/badge/CSE-4410-blue)](https://www.iutoic-dhaka.edu/)
 # LibroTrack: A Smart Library Management System
 
-**Team:** Sadman Mubasshir Khan, Nuren Fahmid, Adib Rahman  
-**IDs:** 220042119, 220042121, 220042151
+**Team:** 
+Sadman Mubasshir Khan  
+220042119
+
+Nuren Fahmid
+220042121
+
+Adib Rahman
+220042151
 
 **Department of Computer Science and Engineering**  
 **Islamic University of Technology**  
