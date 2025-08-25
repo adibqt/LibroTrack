@@ -8,6 +8,8 @@ const port = 3000;
 async function startServer() {
   await runMigrations();
 
+  app.use(express.json());
+
   app.get("/", (req, res) => {
     res.send("Hello World!");
   });
@@ -15,6 +17,14 @@ async function startServer() {
   // Catalog API routes
   const catalogRoutes = require("./routes/catalog");
   app.use("/api/catalog", catalogRoutes);
+
+  // Authors API routes
+  const authorsRoutes = require("./routes/authors");
+  app.use("/api/authors", authorsRoutes);
+
+  // Categories API routes
+  const categoriesRoutes = require("./routes/categories");
+  app.use("/api/categories", categoriesRoutes);
 
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {

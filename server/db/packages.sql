@@ -1,12 +1,27 @@
 -- LibroTrack DB Packages: PKG_CATALOG and PKG_STOCK
 
+CREATE OR REPLACE TYPE NUMBER_TABLE AS TABLE OF NUMBER;
+
 -- PKG_CATALOG Specification
 CREATE OR REPLACE PACKAGE PKG_CATALOG AS
+  -- API expects this signature for create_book
+  PROCEDURE create_book(
+    p_isbn IN VARCHAR2,
+    p_title IN VARCHAR2,
+    p_category_id IN NUMBER,
+    p_publication_year IN NUMBER,
+    p_publisher IN VARCHAR2,
+    p_language IN VARCHAR2,
+    p_description IN CLOB,
+    p_location_shelf IN VARCHAR2,
+    p_total_copies IN NUMBER,
+    p_book_id OUT NUMBER
+  );
   PROCEDURE add_book(
     p_isbn IN VARCHAR2,
     p_title IN VARCHAR2,
     p_category_id IN NUMBER,
-    p_author_ids IN SYS.ODCINUMBERLIST,
+    p_author_ids IN NUMBER_TABLE,
     p_publication_year IN NUMBER DEFAULT NULL,
     p_publisher IN VARCHAR2 DEFAULT NULL,
     p_total_copies IN NUMBER DEFAULT 1,
@@ -14,11 +29,16 @@ CREATE OR REPLACE PACKAGE PKG_CATALOG AS
   );
   PROCEDURE update_book(
     p_book_id IN NUMBER,
+    p_isbn IN VARCHAR2,
     p_title IN VARCHAR2,
     p_category_id IN NUMBER,
-    p_publication_year IN NUMBER DEFAULT NULL,
-    p_publisher IN VARCHAR2 DEFAULT NULL,
-    p_total_copies IN NUMBER DEFAULT 1
+    p_publication_year IN NUMBER,
+    p_publisher IN VARCHAR2,
+    p_language IN VARCHAR2,
+    p_description IN CLOB,
+    p_location_shelf IN VARCHAR2,
+    p_total_copies IN NUMBER,
+    p_status IN VARCHAR2
   );
   PROCEDURE delete_book(
     p_book_id IN NUMBER
@@ -50,7 +70,7 @@ CREATE OR REPLACE PACKAGE BODY PKG_CATALOG AS
     p_isbn IN VARCHAR2,
     p_title IN VARCHAR2,
     p_category_id IN NUMBER,
-    p_author_ids IN SYS.ODCINUMBERLIST,
+    p_author_ids IN NUMBER_TABLE,
     p_publication_year IN NUMBER DEFAULT NULL,
     p_publisher IN VARCHAR2 DEFAULT NULL,
     p_total_copies IN NUMBER DEFAULT 1,
@@ -83,19 +103,29 @@ CREATE OR REPLACE PACKAGE BODY PKG_CATALOG AS
 
   PROCEDURE update_book(
     p_book_id IN NUMBER,
+    p_isbn IN VARCHAR2,
     p_title IN VARCHAR2,
     p_category_id IN NUMBER,
-    p_publication_year IN NUMBER DEFAULT NULL,
-    p_publisher IN VARCHAR2 DEFAULT NULL,
-    p_total_copies IN NUMBER DEFAULT 1
+    p_publication_year IN NUMBER,
+    p_publisher IN VARCHAR2,
+    p_language IN VARCHAR2,
+    p_description IN CLOB,
+    p_location_shelf IN VARCHAR2,
+    p_total_copies IN NUMBER,
+    p_status IN VARCHAR2
   ) IS
   BEGIN
     UPDATE books
-    SET title = p_title,
+    SET isbn = p_isbn,
+        title = p_title,
         category_id = p_category_id,
         publication_year = p_publication_year,
         publisher = p_publisher,
-        total_copies = p_total_copies
+        language = p_language,
+        description = p_description,
+        location_shelf = p_location_shelf,
+        total_copies = p_total_copies,
+        status = p_status
     WHERE book_id = p_book_id;
     COMMIT;
   END update_book;
@@ -114,7 +144,21 @@ CREATE OR REPLACE PACKAGE BODY PKG_CATALOG AS
   ) IS
   BEGIN
     OPEN p_result FOR
-      SELECT b.*, c.category_name
+      SELECT 
+        b.book_id,
+        b.isbn,
+        b.title,
+        b.category_id,
+        b.publication_year,
+        b.publisher,
+        b.language,
+        CAST(b.description AS VARCHAR2(4000)) AS description,
+        b.location_shelf,
+        b.total_copies,
+        b.available_copies,
+        b.reserved_copies,
+        b.status,
+        c.category_name
       FROM books b
       JOIN categories c ON b.category_id = c.category_id
       WHERE b.book_id = p_book_id;
@@ -128,7 +172,20 @@ CREATE OR REPLACE PACKAGE BODY PKG_CATALOG AS
   ) IS
   BEGIN
     OPEN p_result FOR
-      SELECT DISTINCT b.book_id, b.title, b.isbn, c.category_name, b.available_copies, b.total_copies
+      SELECT DISTINCT
+        b.book_id,
+        b.isbn,
+        b.title,
+        b.category_id,
+        b.publication_year,
+        b.publisher,
+        b.language,
+        CAST(b.description AS VARCHAR2(4000)) AS description,
+        b.location_shelf,
+        b.total_copies,
+        b.available_copies,
+        b.reserved_copies,
+        b.status
       FROM books b
       JOIN categories c ON b.category_id = c.category_id
       LEFT JOIN book_authors ba ON b.book_id = ba.book_id
@@ -158,10 +215,31 @@ CREATE OR REPLACE PACKAGE BODY PKG_CATALOG AS
     COMMIT;
   END remove_author_from_book;
 
+  PROCEDURE create_book(
+    p_isbn IN VARCHAR2,
+    p_title IN VARCHAR2,
+    p_category_id IN NUMBER,
+    p_publication_year IN NUMBER,
+    p_publisher IN VARCHAR2,
+    p_language IN VARCHAR2,
+    p_description IN CLOB,
+    p_location_shelf IN VARCHAR2,
+    p_total_copies IN NUMBER,
+    p_book_id OUT NUMBER
+  ) IS
+  BEGIN
+    SELECT books_seq.NEXTVAL INTO p_book_id FROM DUAL;
+    INSERT INTO books (
+      book_id, isbn, title, category_id, publication_year, publisher, language, description, location_shelf, total_copies, available_copies, reserved_copies, status, added_date
+    ) VALUES (
+      p_book_id, p_isbn, p_title, p_category_id, p_publication_year, p_publisher, p_language, p_description, p_location_shelf, p_total_copies, p_total_copies, 0, 'AVAILABLE', SYSDATE
+    );
+    COMMIT;
+  END create_book;
 END PKG_CATALOG;
 /
 
--- PKG_STOCK Specification
+
 CREATE OR REPLACE PACKAGE PKG_STOCK AS
   PROCEDURE reserve_copy(
     p_book_id IN NUMBER,
@@ -182,6 +260,13 @@ CREATE OR REPLACE PACKAGE PKG_STOCK AS
   PROCEDURE get_low_stock_books(
     p_threshold IN NUMBER DEFAULT 2,
     p_result OUT SYS_REFCURSOR
+  );
+  -- API expects this for book availability
+  PROCEDURE get_book_availability(
+    p_book_id IN NUMBER,
+    p_available OUT NUMBER,
+    p_reserved OUT NUMBER,
+    p_total OUT NUMBER
   );
 END PKG_STOCK;
 /
@@ -239,5 +324,15 @@ CREATE OR REPLACE PACKAGE BODY PKG_STOCK AS
       WHERE available_copies <= p_threshold;
   END get_low_stock_books;
 
+  PROCEDURE get_book_availability(
+    p_book_id IN NUMBER,
+    p_available OUT NUMBER,
+    p_reserved OUT NUMBER,
+    p_total OUT NUMBER
+  ) IS
+  BEGIN
+    SELECT available_copies, reserved_copies, total_copies
+      INTO p_available, p_reserved, p_total
+      FROM books WHERE book_id = p_book_id;
+  END get_book_availability;
 END PKG_STOCK;
-/
