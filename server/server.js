@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const { getConnection } = require("./db");
-const runMigrations = require("./migrationRunner");
+const { runMigrations } = require("./migrationRunner");
 const app = express();
 const port = 3000;
 
@@ -25,6 +25,10 @@ async function startServer() {
   // Categories API routes
   const categoriesRoutes = require("./routes/categories");
   app.use("/api/categories", categoriesRoutes);
+
+  // Reservations API routes
+  const reservationsRoutes = require("./routes/reservations");
+  app.use("/api/reservations", reservationsRoutes);
 
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {
@@ -58,5 +62,20 @@ async function startServer() {
     console.log(`Server is running on http://localhost:${port}`);
   });
 }
+
+// Optional: periodically expire overdue reservations
+const db = require("./db");
+setInterval(async () => {
+  let conn;
+  try {
+    conn = await db.getConnection();
+    await conn.execute(`BEGIN PKG_RESERVATIONS.expire_due_reservations; END;`);
+    if (conn.commit) await conn.commit();
+  } catch (e) {
+    console.error("Reservation expiry job failed:", e.message);
+  } finally {
+    if (conn) try { await conn.close(); } catch {}
+  }
+}, 5 * 60 * 1000); // every 5 minutes
 
 startServer();
