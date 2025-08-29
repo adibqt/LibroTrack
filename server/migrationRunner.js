@@ -20,11 +20,15 @@ function splitStatements(sql) {
     }
 
     if (inPlsql) {
-      buf.push(line);
+      // When inside a PL/SQL object definition, accumulate lines until a single slash on its own line
       if (/^\s*\/\s*$/.test(line)) {
-        statements.push(buf.join("\n"));
+        // Push the block without the trailing slash (the slash is a SQL*Plus directive, not part of the DDL)
+        const cleaned = buf.join("\n").trim();
+        if (cleaned) statements.push(cleaned);
         buf = [];
         inPlsql = false;
+      } else {
+        buf.push(line);
       }
       continue;
     }
@@ -84,6 +88,31 @@ async function runMigrations() {
       applied.add(Array.isArray(row) ? row[0] : row.FILENAME);
     }
 
+    // Helper to check compilation errors for the most recently created object
+    async function checkCompileErrorsForStmt(stmt) {
+      // Try to extract object type and name
+      const header = stmt.slice(0, 500).replace(/^[\s\S]*?(CREATE\s+(?:OR\s+REPLACE\s+)?)/i, "$1");
+      const m = header.match(/^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(PROCEDURE|FUNCTION|TRIGGER|PACKAGE(?:\s+BODY)?|TYPE)\s+([A-Za-z0-9_$#\"]+)/i);
+      if (!m) return; // not a creatable PL/SQL object
+      let type = m[1].toUpperCase();
+      let name = m[2];
+      // Strip optional quotes
+      if (name.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1);
+      name = name.split(".").pop(); // drop schema if present
+      const binds = { name, type };
+      const qry = `SELECT name, type, line, position, text FROM user_errors
+                   WHERE name = :name AND type = :type
+                   ORDER BY sequence`;
+      const errRes = await connection.execute(qry, binds);
+      if ((errRes.rows || []).length > 0) {
+        const msgs = (errRes.rows || []).map((r) => {
+          const row = Array.isArray(r) ? { name: r[0], type: r[1], line: r[2], position: r[3], text: r[4] } : r;
+          return `[${row.TYPE}] ${row.NAME} @${row.LINE}:${row.POSITION} - ${row.TEXT}`;
+        });
+        throw new Error(`PL/SQL compilation errors for ${type} ${name}:\n` + msgs.join("\n"));
+      }
+    }
+
     for (const file of files) {
       if (applied.has(file)) {
         console.log(`Skipping already applied migration: ${file}`);
@@ -95,6 +124,8 @@ async function runMigrations() {
       for (const stmt of statements) {
         try {
           await connection.execute(stmt);
+          // After executing a CREATE of a PL/SQL object, surface any compilation errors
+          await checkCompileErrorsForStmt(stmt);
         } catch (e) {
           // Strip leading SQL comments and whitespace to detect CREATE statements
           const stripLeadingComments = (s) => {
