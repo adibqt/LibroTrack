@@ -30,6 +30,10 @@ async function startServer() {
   const reservationsRoutes = require("./routes/reservations");
   app.use("/api/reservations", reservationsRoutes);
 
+  // Loans API routes
+  const loansRoutes = require("./routes/loans");
+  app.use("/api/loans", loansRoutes);
+
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {
     try {
