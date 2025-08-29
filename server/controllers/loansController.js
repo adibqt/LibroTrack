@@ -23,8 +23,10 @@ exports.issue = async (req, res) => {
         loan_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }
       }
     );
-    if (conn.commit) await conn.commit();
-    res.status(201).json({ loan_id: result.outBinds.loan_id[0] });
+  if (conn.commit) await conn.commit();
+  const out = result && result.outBinds ? result.outBinds.loan_id : undefined;
+  const loanId = Array.isArray(out) ? out[0] : out;
+  res.status(201).json({ loan_id: loanId });
   } catch (err) {
     res.status(400).json({ error: err.message });
   } finally {
