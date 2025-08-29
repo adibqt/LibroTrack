@@ -24,7 +24,20 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
   ) IS
     v_avail   NUMBER;
     v_exists  NUMBER;
+    v_dummy   NUMBER;
   BEGIN
+    -- validate user exists
+    SELECT COUNT(*) INTO v_dummy FROM users WHERE user_id = p_user_id;
+    IF v_dummy = 0 THEN
+      RAISE_APPLICATION_ERROR(-20015, 'Invalid user_id');
+    END IF;
+
+    -- validate book exists
+    SELECT COUNT(*) INTO v_dummy FROM books WHERE book_id = p_book_id;
+    IF v_dummy = 0 THEN
+      RAISE_APPLICATION_ERROR(-20014, 'Invalid book_id');
+    END IF;
+
     -- prevent duplicate pending reservation for same user/book
     SELECT COUNT(*) INTO v_exists
       FROM reservations
@@ -63,10 +76,15 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
     v_book_id  NUMBER;
     v_status   VARCHAR2(20);
   BEGIN
-    SELECT book_id, status INTO v_book_id, v_status
-      FROM reservations
-      WHERE reservation_id = p_reservation_id
-      FOR UPDATE;
+    BEGIN
+      SELECT book_id, status INTO v_book_id, v_status
+        FROM reservations
+        WHERE reservation_id = p_reservation_id
+        FOR UPDATE;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20016, 'Reservation not found');
+    END;
 
     IF v_status <> 'PENDING' THEN
       RAISE_APPLICATION_ERROR(-20012, 'Only PENDING reservations can be cancelled');
@@ -88,10 +106,15 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
     v_book_id  NUMBER;
     v_status   VARCHAR2(20);
   BEGIN
-    SELECT book_id, status INTO v_book_id, v_status
-      FROM reservations
-      WHERE reservation_id = p_reservation_id
-      FOR UPDATE;
+    BEGIN
+      SELECT book_id, status INTO v_book_id, v_status
+        FROM reservations
+        WHERE reservation_id = p_reservation_id
+        FOR UPDATE;
+    EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20016, 'Reservation not found');
+    END;
 
     IF v_status <> 'PENDING' THEN
       RAISE_APPLICATION_ERROR(-20013, 'Only PENDING reservations can be fulfilled');
@@ -101,7 +124,6 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
       SET status = 'FULFILLED'
       WHERE reservation_id = p_reservation_id;
 
-    -- Reservation consumes a reserved copy; available was already reduced at create time
     UPDATE books
       SET reserved_copies = reserved_copies - 1
       WHERE book_id = v_book_id;
