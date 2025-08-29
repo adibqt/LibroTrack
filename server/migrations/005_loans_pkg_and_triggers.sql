@@ -70,9 +70,8 @@ CREATE OR REPLACE PACKAGE BODY PKG_LOANS AS
     VALUES (p_loan_id, p_user_id, p_book_id, SYSTIMESTAMP, SYSDATE + NVL(p_due_days, 14), 'ISSUED');
 
     -- Track user's count
-    UPDATE users
-      SET current_books_borrowed = current_books_borrowed + 1
-    WHERE user_id = p_user_id;
+  UPDATE users SET current_books_borrowed = current_books_borrowed + 1
+  WHERE user_id = p_user_id;
 
     COMMIT;
     g_in_proc := FALSE;
@@ -106,15 +105,12 @@ CREATE OR REPLACE PACKAGE BODY PKG_LOANS AS
     PKG_STOCK.checkin_copy(p_book_id => v_book, p_user_id => v_user);
 
     -- Close loan
-    UPDATE loans
-      SET status = 'RETURNED',
-          return_date = SYSDATE
-    WHERE loan_id = p_loan_id;
+  UPDATE loans SET status = 'RETURNED', return_date = SYSDATE
+  WHERE loan_id = p_loan_id;
 
     -- Track user's count
-    UPDATE users
-      SET current_books_borrowed = current_books_borrowed - 1
-    WHERE user_id = v_user;
+  UPDATE users SET current_books_borrowed = current_books_borrowed - 1
+  WHERE user_id = v_user;
 
     -- Optional overdue fine: 1 per day late
     IF SYSDATE > v_due THEN

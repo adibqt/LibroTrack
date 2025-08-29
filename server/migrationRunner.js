@@ -8,23 +8,45 @@ function splitStatements(sql) {
   const statements = [];
   let buf = [];
   let inPlsql = false;
+  let inBlockComment = false;
 
   const plsqlStart = /^\s*(CREATE\s+OR\s+REPLACE\s+)?(PROCEDURE|FUNCTION|TRIGGER|PACKAGE(?:\s+BODY)?|TYPE)\b/i;
 
+  // Remove comments and non-SQL banner lines from a statement candidate (non-PL/SQL only)
+  const cleanStatement = (s) => {
+    if (!s) return "";
+    let t = s;
+    // Remove block comments /* ... */ (including multi-line)
+    t = t.replace(/\/\*[\s\S]*?\*\//g, "");
+  // Remove single-line comments -- ... (entire line)
+  t = t.replace(/^\s*--.*$/gm, "");
+    // Remove banner/separator-only lines like -----, =====, _____, ****
+    t = t.replace(/^\s*[-=_*]{3,}\s*$/gm, "");
+    // Remove stray SQL*Plus slash lines when outside PL/SQL
+    t = t.replace(/^\s*\/\s*$/gm, "");
+    // Drop PROMPT and WHENEVER SQL*Plus directives if present
+    t = t.replace(/^\s*(PROMPT|WHENEVER)\b.*$/gmi, "");
+    return t.trim();
+  };
+
   for (let raw of lines) {
-    const line = raw.replace(/\uFEFF/g, ""); // strip BOM if any
+  const line = raw.replace(/\uFEFF/g, ""); // strip BOM if any
     if (!inPlsql && plsqlStart.test(line)) {
+      // Flush any accumulated non-PL/SQL content (likely comments/banners)
+      const prev = cleanStatement(buf.join("\n"));
+      if (prev) statements.push(prev);
+      buf = [];
       inPlsql = true;
       buf.push(line);
       continue;
     }
 
-    if (inPlsql) {
+  if (inPlsql) {
       // When inside a PL/SQL object definition, accumulate lines until a single slash on its own line
       if (/^\s*\/\s*$/.test(line)) {
         // Push the block without the trailing slash (the slash is a SQL*Plus directive, not part of the DDL)
-        const cleaned = buf.join("\n").trim();
-        if (cleaned) statements.push(cleaned);
+        const plsql = buf.join("\n").trim();
+        if (plsql) statements.push(plsql);
         buf = [];
         inPlsql = false;
       } else {
@@ -33,22 +55,40 @@ function splitStatements(sql) {
       continue;
     }
 
-    // outside PL/SQL: split on semicolons
-    if (line.includes(";")) {
+    // outside PL/SQL: handle comments and split on semicolons
+    const trimmed = line.trim();
+    // Track and skip splitting inside block comments
+    if (!inBlockComment && /\/\*/.test(line) && !/\*\//.test(line)) {
+      inBlockComment = true;
+    } else if (inBlockComment && /\*\//.test(line)) {
+      inBlockComment = false;
+      buf.push(line);
+      continue;
+    }
+
+    // If this is a single-line comment, just accumulate and continue
+    if (!inBlockComment && /^--/.test(trimmed)) {
+      buf.push(line);
+      continue;
+    }
+
+    if (!inBlockComment && line.includes(";")) {
       const parts = line.split(";");
       for (let i = 0; i < parts.length - 1; i++) {
-        buf.push(parts[i]);
-        const stmt = buf.join("\n").trim();
-        if (stmt) statements.push(stmt);
+    buf.push(parts[i]);
+    const stmtRaw = buf.join("\n");
+    const stmt = cleanStatement(stmtRaw);
+    if (stmt) statements.push(stmt);
         buf = [];
       }
       const tail = parts[parts.length - 1];
-      if (tail.trim()) buf.push(tail);
+    if (tail.trim()) buf.push(tail);
     } else {
       buf.push(line);
     }
   }
-  const last = buf.join("\n").trim();
+  const lastRaw = buf.join("\n");
+  const last = cleanStatement(lastRaw);
   if (last) statements.push(last);
   return statements.filter((s) => s.trim());
 }
@@ -89,7 +129,7 @@ async function runMigrations() {
     }
 
     // Helper to check compilation errors for the most recently created object
-    async function checkCompileErrorsForStmt(stmt) {
+  async function checkCompileErrorsForStmt(stmt) {
       // Try to extract object type and name
       const header = stmt.slice(0, 500).replace(/^[\s\S]*?(CREATE\s+(?:OR\s+REPLACE\s+)?)/i, "$1");
       const m = header.match(/^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(PROCEDURE|FUNCTION|TRIGGER|PACKAGE(?:\s+BODY)?|TYPE)\s+([A-Za-z0-9_$#\"]+)/i);
@@ -99,14 +139,17 @@ async function runMigrations() {
       // Strip optional quotes
       if (name.startsWith('"') && name.endsWith('"')) name = name.slice(1, -1);
       name = name.split(".").pop(); // drop schema if present
-      const binds = { name, type };
-      const qry = `SELECT name, type, line, position, text FROM user_errors
-                   WHERE name = :name AND type = :type
+      const qry = `SELECT name, type, line, position, text
+                   FROM user_errors
+                   WHERE UPPER(name) = UPPER(:name)
+                     AND UPPER(type) = UPPER(:type)
                    ORDER BY sequence`;
-      const errRes = await connection.execute(qry, binds);
+      const errRes = await connection.execute(qry, { name, type });
       if ((errRes.rows || []).length > 0) {
         const msgs = (errRes.rows || []).map((r) => {
-          const row = Array.isArray(r) ? { name: r[0], type: r[1], line: r[2], position: r[3], text: r[4] } : r;
+          const row = Array.isArray(r)
+            ? { NAME: r[0], TYPE: r[1], LINE: r[2], POSITION: r[3], TEXT: r[4] }
+            : r;
           return `[${row.TYPE}] ${row.NAME} @${row.LINE}:${row.POSITION} - ${row.TEXT}`;
         });
         throw new Error(`PL/SQL compilation errors for ${type} ${name}:\n` + msgs.join("\n"));
@@ -123,7 +166,14 @@ async function runMigrations() {
       const statements = splitStatements(sql);
       for (const stmt of statements) {
         try {
-          await connection.execute(stmt);
+          // If this is a CREATE TRIGGER statement, execute via dynamic SQL to avoid :NEW/:OLD bind parsing
+          const isTrigger = /\bCREATE\s+(OR\s+REPLACE\s+)?TRIGGER\b/i.test(stmt);
+          if (isTrigger) {
+            const wrapped = `BEGIN EXECUTE IMMEDIATE q'~${stmt}~'; END;`;
+            await connection.execute(wrapped);
+          } else {
+            await connection.execute(stmt);
+          }
           // After executing a CREATE of a PL/SQL object, surface any compilation errors
           await checkCompileErrorsForStmt(stmt);
         } catch (e) {
