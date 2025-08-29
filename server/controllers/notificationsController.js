@@ -10,15 +10,21 @@ exports.getPending = async (req, res) => {
     const result = await conn.execute(
       `SELECT notification_id, reservation_id, user_id, book_id,
               notif_type AS type, channel, notif_status AS status, created_at
-       FROM notifications
-       WHERE notif_status = 'PENDING'
-       ORDER BY created_at
-       FETCH FIRST :lim ROWS ONLY`,
+       FROM (
+         SELECT notification_id, reservation_id, user_id, book_id,
+                notif_type, channel, notif_status, created_at
+         FROM notifications
+         WHERE notif_status = 'PENDING'
+         ORDER BY created_at
+       )
+       WHERE ROWNUM <= :lim`,
       { lim: limit }
     );
-    const cols = result.metaData.map(c => c.name.toLowerCase());
-    const data = result.rows.map(r => Object.fromEntries(r.map((v,i)=>[cols[i], v])));
-    res.json(data);
+  const cols = result.metaData.map(c => c.name.toLowerCase());
+  const data = (result.rows || []).map(r => Object.fromEntries(r.map((v,i)=>[cols[i], v])));
+  res.set("Content-Type", "application/json");
+  res.set("X-Items-Count", String(data.length));
+  res.send(JSON.stringify(data));
   } catch (err) {
     res.status(500).json({ error: String(err.message || err) });
   } finally {

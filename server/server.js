@@ -70,6 +70,22 @@ async function startServer() {
     }
   });
 
+  // Check notifications table content
+  app.get("/db/notifications", async (req, res) => {
+    try {
+      const conn = await getConnection();
+      const r = await conn.execute(
+        "SELECT notification_id, reservation_id, user_id, book_id, notif_type, notif_status, created_at FROM notifications ORDER BY created_at DESC FETCH FIRST 10 ROWS ONLY"
+      );
+      const cols = r.metaData.map(c => c.name.toLowerCase());
+      const data = r.rows.map(row => Object.fromEntries(row.map((v,i)=>[cols[i], v])));
+      await conn.close();
+      res.json(data);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
   });
