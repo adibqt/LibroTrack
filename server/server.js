@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const { getConnection } = require("./db");
-const runMigrations = require("./migrationRunner");
+const { runMigrations } = require("./migrationRunner");
 const app = express();
 const port = 3000;
 
