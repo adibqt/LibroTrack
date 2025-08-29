@@ -5,12 +5,12 @@ CREATE TABLE notifications (
   reservation_id    NUMBER NOT NULL,
   user_id           NUMBER NOT NULL,
   book_id           NUMBER NOT NULL,
-  type              VARCHAR2(30) NOT NULL CHECK (type IN (
+  notif_type        VARCHAR2(30) NOT NULL CHECK (notif_type IN (
                       'RESERVE_READY','RESERVATION_CANCELLED','RESERVATION_FULFILLED','RESERVATION_EXPIRED'
                     )),
   channel           VARCHAR2(20) DEFAULT 'SYSTEM' CHECK (channel IN ('SYSTEM','EMAIL','SMS','PUSH')),
   payload           CLOB,
-  status            VARCHAR2(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING','SENT','FAILED','CANCELLED')),
+  notif_status      VARCHAR2(20) DEFAULT 'PENDING' CHECK (notif_status IN ('PENDING','SENT','FAILED','CANCELLED')),
   error_message     VARCHAR2(4000),
   created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   sent_at           TIMESTAMP,
@@ -22,9 +22,9 @@ CREATE TABLE notifications (
 CREATE SEQUENCE notifications_seq START WITH 1 INCREMENT BY 1;
 
 -- Avoid duplicate notifications of same type for a reservation
-ALTER TABLE notifications ADD CONSTRAINT uq_notif_res_type UNIQUE (reservation_id, type);
+ALTER TABLE notifications ADD CONSTRAINT uq_notif_res_type UNIQUE (reservation_id, notif_type);
 
-CREATE INDEX idx_notif_status_time ON notifications(status, created_at);
+CREATE INDEX idx_notif_status_time ON notifications(notif_status, created_at);
 CREATE INDEX idx_notif_user ON notifications(user_id);
 
 --------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ CREATE OR REPLACE PACKAGE BODY PKG_NOTIFICATIONS AS
     FROM reservations WHERE reservation_id = p_reservation_id;
 
     INSERT INTO notifications (
-      notification_id, reservation_id, user_id, book_id, type, payload, status, created_at
+      notification_id, reservation_id, user_id, book_id, notif_type, payload, notif_status, created_at
     ) VALUES (
       notifications_seq.NEXTVAL, p_reservation_id, v_user, v_book, 'RESERVE_READY',
       NULL, 'PENDING', SYSTIMESTAMP
@@ -63,7 +63,7 @@ CREATE OR REPLACE PACKAGE BODY PKG_NOTIFICATIONS AS
     FROM reservations WHERE reservation_id = p_reservation_id;
 
     INSERT INTO notifications (
-      notification_id, reservation_id, user_id, book_id, type, payload, status, created_at
+      notification_id, reservation_id, user_id, book_id, notif_type, payload, notif_status, created_at
     ) VALUES (
       notifications_seq.NEXTVAL, p_reservation_id, v_user, v_book, p_type,
       NULL, 'PENDING', SYSTIMESTAMP
@@ -77,10 +77,10 @@ CREATE OR REPLACE PACKAGE BODY PKG_NOTIFICATIONS AS
     v_res  NUMBER;
   BEGIN
     UPDATE notifications
-      SET status = 'SENT', sent_at = SYSTIMESTAMP, error_message = NULL
+      SET notif_status = 'SENT', sent_at = SYSTIMESTAMP, error_message = NULL
       WHERE notification_id = p_notification_id;
 
-    SELECT type, reservation_id INTO v_type, v_res
+    SELECT notif_type, reservation_id INTO v_type, v_res
     FROM notifications WHERE notification_id = p_notification_id;
 
     -- When the "reserve ready" notification is sent, mark reservation as notified
@@ -92,16 +92,16 @@ CREATE OR REPLACE PACKAGE BODY PKG_NOTIFICATIONS AS
   PROCEDURE mark_failed(p_notification_id IN NUMBER, p_error IN VARCHAR2) IS
   BEGIN
     UPDATE notifications
-      SET status = 'FAILED', error_message = SUBSTR(p_error, 1, 4000)
+  SET notif_status = 'FAILED', error_message = SUBSTR(p_error, 1, 4000)
       WHERE notification_id = p_notification_id;
   END mark_failed;
 
   PROCEDURE list_pending(p_limit IN NUMBER DEFAULT 50, p_result OUT SYS_REFCURSOR) IS
   BEGIN
     OPEN p_result FOR
-      SELECT notification_id, reservation_id, user_id, book_id, type, channel, status, created_at
+  SELECT notification_id, reservation_id, user_id, book_id, notif_type, channel, notif_status, created_at
       FROM notifications
-      WHERE status = 'PENDING'
+  WHERE notif_status = 'PENDING'
       ORDER BY created_at
       FETCH FIRST NVL(p_limit, 50) ROWS ONLY;
   END list_pending;

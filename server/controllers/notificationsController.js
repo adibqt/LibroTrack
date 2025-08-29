@@ -8,9 +8,10 @@ exports.getPending = async (req, res) => {
   try {
     conn = await db.getConnection();
     const result = await conn.execute(
-      `SELECT notification_id, reservation_id, user_id, book_id, type, channel, status, created_at
+      `SELECT notification_id, reservation_id, user_id, book_id,
+              notif_type AS type, channel, notif_status AS status, created_at
        FROM notifications
-       WHERE status = 'PENDING'
+       WHERE notif_status = 'PENDING'
        ORDER BY created_at
        FETCH FIRST :lim ROWS ONLY`,
       { lim: limit }
