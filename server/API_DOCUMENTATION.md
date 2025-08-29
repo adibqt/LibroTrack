@@ -1,3 +1,124 @@
+---
+
+## Reservations
+
+### Create Reservation
+
+- **POST** `/api/reservations`
+
+#### Request Body
+
+```json
+{
+  "user_id": 1,
+  "book_id": 2,
+  "expiry_days": 7,
+  "priority_level": 1
+}
+```
+
+#### Response
+
+```json
+{ "reservation_id": 10 }
+```
+
+#### Use Case
+
+Reserve a book for a user, optionally specifying expiry and priority.
+
+---
+
+### Cancel Reservation
+
+- **POST** `/api/reservations/{id}/cancel`
+
+#### Response
+
+```json
+{ "message": "Reservation cancelled" }
+```
+
+#### Use Case
+
+Cancel an active reservation.
+
+---
+
+### Fulfill Reservation
+
+- **POST** `/api/reservations/{id}/fulfill`
+
+#### Response
+
+```json
+{ "message": "Reservation fulfilled" }
+```
+
+#### Use Case
+
+Mark a reservation as fulfilled (e.g., when the book is picked up).
+
+---
+
+### Expire Reservations (Manual)
+
+- **POST** `/api/reservations/expire/run`
+
+#### Response
+
+```json
+{ "message": "Expired reservations processed" }
+```
+
+#### Use Case
+
+Manually trigger expiration of overdue reservations.
+
+---
+
+## Loans
+
+### Issue a Book (Checkout)
+
+- **POST** `/api/loans`
+
+#### Request Body
+
+```json
+{
+  "user_id": 1,
+  "book_id": 2,
+  "due_days": 14
+}
+```
+
+#### Response
+
+```json
+{ "loan_id": 5 }
+```
+
+#### Use Case
+
+Issue a book to a user (checkout/borrow).
+
+---
+
+### Return a Book (Checkin)
+
+- **POST** `/api/loans/{id}/return`
+
+#### Response
+
+```json
+{ "message": "Book returned" }
+```
+
+#### Use Case
+
+Return a borrowed book (checkin).
+
 # LibroTrack API Documentation
 
 This document describes all available API endpoints for the LibroTrack project, including sample requests and responses, use cases, and notes.
