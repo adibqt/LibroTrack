@@ -14,6 +14,10 @@ async function startServer() {
     res.send("Hello World!");
   });
 
+  // Auth API routes
+  const authRoutes = require("./routes/auth");
+  app.use("/api/auth", authRoutes);
+
   // Catalog API routes
   const catalogRoutes = require("./routes/catalog");
   app.use("/api/catalog", catalogRoutes);
@@ -77,8 +81,10 @@ async function startServer() {
       const r = await conn.execute(
         "SELECT notification_id, reservation_id, user_id, book_id, notif_type, notif_status, created_at FROM notifications ORDER BY created_at DESC FETCH FIRST 10 ROWS ONLY"
       );
-      const cols = r.metaData.map(c => c.name.toLowerCase());
-      const data = r.rows.map(row => Object.fromEntries(row.map((v,i)=>[cols[i], v])));
+      const cols = r.metaData.map((c) => c.name.toLowerCase());
+      const data = r.rows.map((row) =>
+        Object.fromEntries(row.map((v, i) => [cols[i], v]))
+      );
       await conn.close();
       res.json(data);
     } catch (err) {
@@ -102,7 +108,10 @@ setInterval(async () => {
   } catch (e) {
     console.error("Reservation expiry job failed:", e.message);
   } finally {
-    if (conn) try { await conn.close(); } catch {}
+    if (conn)
+      try {
+        await conn.close();
+      } catch {}
   }
 }, 5 * 60 * 1000); // every 5 minutes
 

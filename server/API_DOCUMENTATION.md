@@ -1,5 +1,174 @@
 ---
 
+
+## Authentication & User Management
+
+### Register User
+
+- **POST** `/api/auth/register`
+
+#### Request Body
+
+
+```json
+{
+  "username": "testuser",
+  "password": "testpass",
+  "first_name": "Test",
+  "last_name": "User",
+  "email": "test@example.com",
+  "user_type": "MEMBER"
+}
+```
+
+#### Response
+
+```json
+{ "user_id": 1 }
+```
+
+#### Use Case
+
+Register a new user (member or admin).
+
+---
+
+### Login
+
+- **POST** `/api/auth/login`
+
+#### Request Body
+
+```json
+{
+  "username": "johndoe",
+  "password": "yourpassword"
+}
+```
+
+#### Response
+
+```json
+{ "token": "<jwt_token>" }
+```
+
+#### Use Case
+
+Authenticate a user and receive a JWT token for subsequent requests.
+
+---
+
+### Get Current User
+
+- **GET** `/api/auth/me`
+
+#### Headers
+
+`Authorization: Bearer <jwt_token>`
+
+#### Response
+
+```json
+{
+  "user_id": 1,
+  "username": "johndoe",
+  "first_name": "John",
+  "last_name": "Doe",
+  "email": "john@example.com",
+  "user_type": "MEMBER",
+  "status": "ACTIVE",
+  "created_at": "2025-08-30T12:34:56.000Z"
+}
+```
+
+#### Use Case
+
+Get the profile of the currently authenticated user.
+
+---
+
+### Get User by ID
+
+- **GET** `/api/auth/users/{id}`
+
+#### Headers
+
+`Authorization: Bearer <jwt_token>`
+
+#### Response
+
+```json
+{
+  "user_id": 2,
+  "username": "janedoe",
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "email": "jane@example.com",
+  "user_type": "MEMBER",
+  "status": "ACTIVE",
+  "created_at": "2025-08-30T12:34:56.000Z"
+}
+```
+
+#### Use Case
+
+Get the profile of a user by their ID.
+
+---
+
+### Update User
+
+- **PATCH** `/api/auth/users/{id}`
+
+#### Headers
+
+`Authorization: Bearer <jwt_token>`
+
+#### Request Body
+
+```json
+{
+  "username": "newname",
+  "first_name": "New",
+  "last_name": "Name",
+  "email": "newemail@example.com",
+  "user_type": "MEMBER",
+  "status": "ACTIVE"
+}
+```
+
+#### Response
+
+```json
+{ "message": "User updated" }
+```
+
+#### Use Case
+
+Update a user's profile or status.
+
+---
+
+### Can User Issue Books
+
+- **GET** `/api/auth/users/{id}/can-issue`
+
+#### Headers
+
+`Authorization: Bearer <jwt_token>`
+
+#### Response
+
+```json
+{ "can_issue": true }
+```
+
+#### Use Case
+
+Check if a user is eligible to issue books (i.e., has ACTIVE status).
+
+---
+
 ## Reservations
 
 ### Create Reservation
