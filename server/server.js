@@ -26,6 +26,14 @@ async function startServer() {
   const categoriesRoutes = require("./routes/categories");
   app.use("/api/categories", categoriesRoutes);
 
+  // Returns API routes
+  const returnsRoutes = require("./routes/returns");
+  app.use("/api/returns", returnsRoutes);
+  
+    // Auth routes
+    const authRoutes = require('./routes/auth');
+    app.use('/api/auth', authRoutes);
+
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {
     try {
@@ -59,4 +67,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start server if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+module.exports = app;
