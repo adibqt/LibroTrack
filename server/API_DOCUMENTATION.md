@@ -1,3 +1,77 @@
+## Reports
+
+### Get Popular Books
+
+- **GET** `/api/reports/popular-books`
+
+#### Response
+
+```json
+[
+  { "book_id": 1, "title": "1984", "loan_count": 12 },
+  { "book_id": 2, "title": "Brave New World", "loan_count": 8 }
+]
+```
+
+#### Use Case
+
+List books ordered by number of loans (popularity).
+
+---
+
+### Get Member Activity
+
+- **GET** `/api/reports/member-activity`
+
+#### Response
+
+```json
+[
+  {
+    "user_id": 1,
+    "username": "johndoe",
+    "first_name": "John",
+    "last_name": "Doe",
+    "loan_count": 5,
+    "reservation_count": 2,
+    "fine_count": 1
+  }
+]
+```
+
+#### Use Case
+
+Show each member's activity: number of loans, reservations, and fines.
+
+---
+
+### Get Fines Summary
+
+- **GET** `/api/reports/fines`
+
+#### Response
+
+```json
+[
+  {
+    "total_fines": 20,
+    "paid_fines": 10,
+    "unpaid_fines": 7,
+    "waived_fines": 3,
+    "total_amount": 500.0,
+    "paid_amount": 250.0,
+    "unpaid_amount": 200.0,
+    "waived_amount": 50.0
+  }
+]
+```
+
+#### Use Case
+
+Get a summary of all fines in the system, including counts and amounts by status.
+
+---
+
 ## Fines
 
 ### Assess Fine

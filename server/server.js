@@ -49,6 +49,10 @@ async function startServer() {
   const notificationsRoutes = require("./routes/notifications");
   app.use("/api/notifications", notificationsRoutes);
 
+  // Reports API routes
+  const reportsRoutes = require("./routes/reports");
+  app.use("/api/reports", reportsRoutes);
+
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {
     try {
