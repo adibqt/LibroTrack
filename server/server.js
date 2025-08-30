@@ -34,6 +34,14 @@ async function startServer() {
   const loansRoutes = require("./routes/loans");
   app.use("/api/loans", loansRoutes);
 
+  // Members API routes
+  const membersRoutes = require("./routes/members");
+  app.use("/api/members", membersRoutes);
+
+  // Notifications API routes
+  const notificationsRoutes = require("./routes/notifications");
+  app.use("/api/notifications", notificationsRoutes);
+
   // Test OracleDB connection endpoint
   app.get("/dbtest", async (req, res) => {
     try {
@@ -57,6 +65,22 @@ async function startServer() {
       );
       await conn.close();
       res.json(r.rows.map((row) => row[0]));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Check notifications table content
+  app.get("/db/notifications", async (req, res) => {
+    try {
+      const conn = await getConnection();
+      const r = await conn.execute(
+        "SELECT notification_id, reservation_id, user_id, book_id, notif_type, notif_status, created_at FROM notifications ORDER BY created_at DESC FETCH FIRST 10 ROWS ONLY"
+      );
+      const cols = r.metaData.map(c => c.name.toLowerCase());
+      const data = r.rows.map(row => Object.fromEntries(row.map((v,i)=>[cols[i], v])));
+      await conn.close();
+      res.json(data);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
