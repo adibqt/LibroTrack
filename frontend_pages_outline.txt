@@ -1,0 +1,16 @@
+Frontend Page Outline for LibroTrack
+
+1. Home / Dashboard
+2. Login / Register
+3. Book Catalog / Search
+4. My Borrowed Books
+5. Borrowing History
+6. My Fines
+7. Profile
+8. Book Management (Admin)
+9. Member Management (Admin)
+10. Issue/Return Books (Admin)
+11. Reports & Analytics (Admin)
+12. Fine Management (Admin)
+13. Error / Not Found Page
+14. Access Control / Admin Panel
