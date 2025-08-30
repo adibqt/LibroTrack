@@ -1,5 +1,172 @@
+## Fines
+
+### Assess Fine
+
+- **POST** `/api/fines`
+
+#### Request Body
+
+```json
+{
+  "user_id": 1,
+  "amount": 50.0,
+  "fine_type": "OVERDUE" // e.g. OVERDUE, DAMAGE, LOST, OTHER
+}
+```
+
+#### Response
+
+```json
+{ "fine_id": 10 }
+```
+
+#### Use Case
+
+Create a new fine for a user (e.g., for overdue books).
+
 ---
 
+### Settle (Pay) Fine
+
+- **PATCH** `/api/fines/{fineId}/pay`
+
+#### Response
+
+```json
+{ "message": "Fine settled" }
+```
+
+#### Use Case
+
+Mark a fine as paid and update the user's total fines.
+
+---
+
+### Waive Fine
+
+- **PATCH** `/api/fines/{fineId}/waive`
+
+#### Response
+
+```json
+{ "message": "Fine waived" }
+```
+
+#### Use Case
+
+Waive a fine for a user (e.g., as a courtesy).
+
+---
+
+### Get Fine by ID
+
+- **GET** `/api/fines/{fineId}`
+
+```json
+{
+  "user_id": 1,
+  "amount": 50.0,
+  "fine_type": "OVERDUE", // e.g. OVERDUE, DAMAGE, LOST, OTHER
+  "description": "Overdue book fine", // optional
+  "due_date": "2025-09-10T00:00:00.000Z" // optional
+}
+```
+
+#### Response
+
+```json
+{
+  "fine_id": 10,
+  "user_id": 1,
+  "amount": 50.0,
+  "status": "UNPAID",
+  "created_at": "2025-08-31T12:34:56.000Z"
+```
+
+#### Use Case
+
+Get details of a specific fine.
+
+---
+
+### Get All Fines for a User
+
+- **GET** `/api/fines/user/{userId}`
+
+```json
+{
+  "fine_id": 10,
+  "user_id": 1,
+  "fine_type": "OVERDUE", // e.g. OVERDUE, DAMAGE, LOST, OTHER
+  "amount": 50.0,
+  "description": "Overdue book fine",
+  "fine_date": "2025-08-31T12:34:56.000Z",
+  "due_date": "2025-09-10T00:00:00.000Z",
+  "paid_amount": 0.0,
+  "payment_date": null,
+  "status": "UNPAID",
+  "created_at": "2025-08-31T12:34:56.000Z"
+}
+```
+
+#### Response
+
+```json
+  {
+    "fine_id": 10,
+    "user_id": 1,
+    "amount": 50.0,
+    "status": "UNPAID",
+    "created_at": "2025-08-31T12:34:56.000Z"
+  },
+  {
+    "fine_id": 11,
+    "user_id": 1,
+    "amount": 20.0,
+    "status": "PAID",
+    "created_at": "2025-08-30T10:00:00.000Z"
+  }
+]
+```
+
+#### Use Case
+
+List all fines for a user, most recent first.
+
+```json
+[
+  {
+    "fine_id": 10,
+    "user_id": 1,
+    "fine_type": "LATE",
+    "amount": 50.0,
+    "description": "Overdue book fine",
+    "fine_date": "2025-08-31T12:34:56.000Z",
+    "due_date": "2025-09-10T00:00:00.000Z",
+    "paid_amount": 0.0,
+    "payment_date": null,
+    "status": "UNPAID",
+    "created_at": "2025-08-31T12:34:56.000Z"
+  },
+  {
+    "fine_id": 11,
+    "user_id": 1,
+    "fine_type": "DAMAGE", // e.g. OVERDUE, DAMAGE, LOST, OTHER
+    "amount": 20.0,
+    "description": "Damaged book",
+    "fine_date": "2025-08-30T10:00:00.000Z",
+    "due_date": null,
+    "paid_amount": 20.0,
+    "payment_date": "2025-08-31T15:00:00.000Z",
+    "status": "PAID",
+    "created_at": "2025-08-30T10:00:00.000Z"
+  }
+]
+```
+
+---
+
+---
 
 ## Authentication & User Management
 
@@ -8,7 +175,6 @@
 - **POST** `/api/auth/register`
 
 #### Request Body
-
 
 ```json
 {

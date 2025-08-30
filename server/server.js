@@ -6,9 +6,12 @@ const app = express();
 const port = 3000;
 
 async function startServer() {
-  await runMigrations();
-
+  // Fines API routes
   app.use(express.json());
+
+  const finesRoutes = require("./routes/fines");
+  app.use("/api/fines", finesRoutes);
+  await runMigrations();
 
   app.get("/", (req, res) => {
     res.send("Hello World!");
