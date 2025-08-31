@@ -61,11 +61,14 @@ export default function AdminDashboard() {
               <div className="mt-1 text-2xl font-semibold text-blue-900">Book Management</div>
               <div className="text-blue-800/80">Create, edit, and organize your collection.</div>
             </button>
-            <div className="rounded-xl border border-slate-200 p-4 opacity-70">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Members</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">Coming soon</div>
-              <div className="text-slate-500">Manage library members and permissions.</div>
-            </div>
+            <button
+              onClick={() => navigate('/admin/members')}
+              className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+            >
+              <div className="text-xs uppercase tracking-wide text-emerald-700">Members</div>
+              <div className="mt-1 text-2xl font-semibold text-emerald-900">Member Management</div>
+              <div className="text-emerald-800/80">View profiles, limits, histories, and remove members.</div>
+            </button>
             <div className="rounded-xl border border-slate-200 p-4 opacity-70">
               <div className="text-xs uppercase tracking-wide text-slate-500">Reports</div>
               <div className="mt-1 text-2xl font-semibold text-slate-900">Coming soon</div>

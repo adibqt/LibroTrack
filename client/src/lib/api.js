@@ -60,3 +60,50 @@ export const CategoriesAPI = {
       body: JSON.stringify({ category_name, description }),
     }),
 };
+
+// Members API
+export const MembersAPI = {
+  list: (params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return apiFetch(`/api/members${q ? `?${q}` : ""}`);
+  },
+  get: (userId) => apiFetch(`/api/members/${userId}`),
+  update: (userId, payload) =>
+    apiFetch(`/api/members/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  remove: (userId) =>
+    apiFetch(`/api/members/${userId}`, {
+      method: "DELETE",
+    }),
+  reservationHistory: (userId, params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return apiFetch(`/api/members/${userId}/history/reservations${q ? `?${q}` : ""}`);
+  },
+  loansHistory: (userId, params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return apiFetch(`/api/members/${userId}/history/loans${q ? `?${q}` : ""}`);
+  },
+};
