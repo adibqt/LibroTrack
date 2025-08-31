@@ -51,7 +51,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick stats placeholder (future) */}
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {/* Primary tile becomes a Book Management button */}
             <button
               onClick={() => navigate('/admin/books')}
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
             >
               <div className="text-xs uppercase tracking-wide text-blue-700">Catalog</div>
               <div className="mt-1 text-2xl font-semibold text-blue-900">Book Management</div>
-              <div className="text-blue-800/80">Create, edit, and organize your collection.</div>
+              <div className="text-sm text-blue-800/80 leading-tight">Create, edit, and organize your collection.</div>
             </button>
             <button
               onClick={() => navigate('/admin/members')}
@@ -67,7 +67,7 @@ export default function AdminDashboard() {
             >
               <div className="text-xs uppercase tracking-wide text-emerald-700">Members</div>
               <div className="mt-1 text-2xl font-semibold text-emerald-900">Member Management</div>
-              <div className="text-emerald-800/80">View profiles, limits, histories, and remove members.</div>
+              <div className="text-sm text-emerald-800/80 leading-tight">View profiles, limits, and histories.</div>
             </button>
             <button
               onClick={() => navigate('/admin/operations')}
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
             >
               <div className="text-xs uppercase tracking-wide text-purple-700">Operations</div>
               <div className="mt-1 text-2xl font-semibold text-purple-900">Reservations & Loans</div>
-              <div className="text-purple-800/80">Create/cancel/fulfill/expire reservations and issue/return loans.</div>
+              <div className="text-sm text-purple-800/80 leading-tight">Manage reservations and loan operations.</div>
             </button>
             <button
               onClick={() => navigate('/admin/fines')}
@@ -83,7 +83,15 @@ export default function AdminDashboard() {
             >
               <div className="text-xs uppercase tracking-wide text-amber-700">Finance</div>
               <div className="mt-1 text-2xl font-semibold text-amber-900">Fine Management</div>
-              <div className="text-amber-800/80">List, create, settle, and waive fines.</div>
+              <div className="text-sm text-amber-800/80 leading-tight">List, create, settle, and waive fines.</div>
+            </button>
+            <button
+              onClick={() => navigate('/admin/reports')}
+              className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-left shadow-sm transition hover:border-rose-300 hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300"
+            >
+              <div className="text-xs uppercase tracking-wide text-rose-700">Analytics</div>
+              <div className="mt-1 text-2xl font-semibold text-rose-900">Reports</div>
+              <div className="text-sm text-rose-800/80 leading-tight">View insights and analytics for operations.</div>
             </button>
           </div>
         </section>
