@@ -69,11 +69,14 @@ export default function AdminDashboard() {
               <div className="mt-1 text-2xl font-semibold text-emerald-900">Member Management</div>
               <div className="text-emerald-800/80">View profiles, limits, histories, and remove members.</div>
             </button>
-            <div className="rounded-xl border border-slate-200 p-4 opacity-70">
-              <div className="text-xs uppercase tracking-wide text-slate-500">Reports</div>
-              <div className="mt-1 text-2xl font-semibold text-slate-900">Coming soon</div>
-              <div className="text-slate-500">Track loans, fines, and stock levels.</div>
-            </div>
+            <button
+              onClick={() => navigate('/admin/operations')}
+              className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-left shadow-sm transition hover:border-purple-300 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-300"
+            >
+              <div className="text-xs uppercase tracking-wide text-purple-700">Operations</div>
+              <div className="mt-1 text-2xl font-semibold text-purple-900">Reservations & Loans</div>
+              <div className="text-purple-800/80">Create/cancel/fulfill/expire reservations and issue/return loans.</div>
+            </button>
           </div>
         </section>
       </main>

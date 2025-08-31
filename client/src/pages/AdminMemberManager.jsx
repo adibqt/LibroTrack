@@ -238,6 +238,7 @@ export default function AdminMemberManager() {
                       <table className="min-w-full divide-y divide-slate-200 text-sm">
                         <thead className="bg-slate-50">
                           <tr>
+                            <th className="px-3 py-1.5 text-left font-medium text-slate-700">Loan ID</th>
                             <th className="px-3 py-1.5 text-left font-medium text-slate-700">Title</th>
                             <th className="px-3 py-1.5 text-left font-medium text-slate-700">Status</th>
                           </tr>
@@ -245,12 +246,13 @@ export default function AdminMemberManager() {
                         <tbody className="divide-y divide-slate-200">
                           {loans.map((l) => (
                             <tr key={l.loan_id}>
+                              <td className="px-3 py-1.5 text-slate-700">{l.loan_id}</td>
                               <td className="px-3 py-1.5">{l.title}</td>
                               <td className="px-3 py-1.5">{l.status}</td>
                             </tr>
                           ))}
                           {loans.length === 0 && (
-                            <tr><td className="px-3 py-3 text-center text-slate-500" colSpan={2}>No loans</td></tr>
+                            <tr><td className="px-3 py-3 text-center text-slate-500" colSpan={3}>No loans</td></tr>
                           )}
                         </tbody>
                       </table>
@@ -262,6 +264,7 @@ export default function AdminMemberManager() {
                       <table className="min-w-full divide-y divide-slate-200 text-sm">
                         <thead className="bg-slate-50">
                           <tr>
+                            <th className="px-3 py-1.5 text-left font-medium text-slate-700">Reservation ID</th>
                             <th className="px-3 py-1.5 text-left font-medium text-slate-700">Title</th>
                             <th className="px-3 py-1.5 text-left font-medium text-slate-700">To Status</th>
                           </tr>
@@ -269,12 +272,13 @@ export default function AdminMemberManager() {
                         <tbody className="divide-y divide-slate-200">
                           {reservations.map((h) => (
                             <tr key={h.history_id}>
+                              <td className="px-3 py-1.5 text-slate-700">{h.reservation_id}</td>
                               <td className="px-3 py-1.5">{h.title}</td>
                               <td className="px-3 py-1.5">{h.to_status}</td>
                             </tr>
                           ))}
                           {reservations.length === 0 && (
-                            <tr><td className="px-3 py-3 text-center text-slate-500" colSpan={2}>No history</td></tr>
+                            <tr><td className="px-3 py-3 text-center text-slate-500" colSpan={3}>No history</td></tr>
                           )}
                         </tbody>
                       </table>

@@ -107,3 +107,28 @@ export const MembersAPI = {
     return apiFetch(`/api/members/${userId}/history/loans${q ? `?${q}` : ""}`);
   },
 };
+
+// Reservations API
+export const ReservationsAPI = {
+  create: ({ user_id, book_id, expiry_days, priority_level }) =>
+    apiFetch(`/api/reservations`, {
+      method: "POST",
+      body: JSON.stringify({ user_id, book_id, expiry_days, priority_level }),
+    }),
+  cancel: (reservationId) =>
+    apiFetch(`/api/reservations/${reservationId}/cancel`, { method: "POST" }),
+  fulfill: (reservationId) =>
+    apiFetch(`/api/reservations/${reservationId}/fulfill`, { method: "POST" }),
+  expireDue: () => apiFetch(`/api/reservations/expire/run`, { method: "POST" }),
+};
+
+// Loans API
+export const LoansAPI = {
+  issue: ({ user_id, book_id, due_days }) =>
+    apiFetch(`/api/loans`, {
+      method: "POST",
+      body: JSON.stringify({ user_id, book_id, due_days }),
+    }),
+  returnLoan: (loanId) =>
+    apiFetch(`/api/loans/${loanId}/return`, { method: "POST" }),
+};

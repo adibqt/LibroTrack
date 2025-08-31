@@ -214,6 +214,7 @@ export default function AdminBookManager() {
             <table className="min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
+          <th className="px-3 py-2">ID</th>
                   <th className="px-3 py-2">Title</th>
                   <th className="px-3 py-2">ISBN</th>
                   <th className="px-3 py-2">Category</th>
@@ -225,12 +226,13 @@ export default function AdminBookManager() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">Loading…</td></tr>
+          <tr><td colSpan={8} className="px-3 py-6 text-center text-slate-500">Loading…</td></tr>
                 ) : filtered.length === 0 ? (
-                  <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">No books found</td></tr>
+          <tr><td colSpan={8} className="px-3 py-6 text-center text-slate-500">No books found</td></tr>
                 ) : (
                   filtered.map((b) => (
                     <tr key={b.book_id} className="border-t">
+            <td className="px-3 py-2 text-slate-700">{b.book_id}</td>
                       <td className="px-3 py-2 font-medium text-slate-800">{b.title}</td>
                       <td className="px-3 py-2">{b.isbn}</td>
                       <td className="px-3 py-2">{categories.find(c => c.category_id === b.category_id)?.category_name || b.category_id}</td>
@@ -257,6 +259,9 @@ export default function AdminBookManager() {
         <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">{editingId ? "Edit Book" : "New Book"}</h2>
           <form onSubmit={onSubmit} className="mt-4 space-y-3">
+            {editingId && (
+              <TextField label="Book ID" name="book_id" value={editingId} readOnly className="bg-slate-50" />
+            )}
             <TextField label="Title" name="title" value={form.title} onChange={onChange} required />
             <TextField label="ISBN" name="isbn" value={form.isbn} onChange={onChange} required />
             <SelectField label="Category" name="category_id" value={form.category_id} onChange={onChange} required>
