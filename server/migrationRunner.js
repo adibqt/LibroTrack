@@ -10,7 +10,8 @@ function splitStatements(sql) {
   let inPlsql = false;
   let inBlockComment = false;
 
-  const plsqlStart = /^\s*(CREATE\s+OR\s+REPLACE\s+)?(PROCEDURE|FUNCTION|TRIGGER|PACKAGE(?:\s+BODY)?|TYPE)\b/i;
+  // Treat both named PL/SQL objects and anonymous blocks as PL/SQL regions
+  const plsqlStart = /^\s*(?:CREATE\s+OR\s+REPLACE\s+)?(?:PROCEDURE|FUNCTION|TRIGGER|PACKAGE(?:\s+BODY)?|TYPE)\b|^\s*(?:DECLARE|BEGIN)\b/i;
 
   // Remove comments and non-SQL banner lines from a statement candidate (non-PL/SQL only)
   const cleanStatement = (s) => {
