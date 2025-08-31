@@ -136,52 +136,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Quick links */}
-      <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-4 text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Quick links</h2>
-          <p className="mt-1 text-gray-600">Jump straight to what you need.</p>
-        </div>
-        {(() => {
-          const authed = AuthStore.isAuthenticated();
-          const links = [
-            { to: "/catalog", label: "Browse Catalog" },
-            ...(authed
-              ? [
-                  { to: "/my-loans", label: "My Borrowed Books" },
-                  { to: "/history", label: "Borrowing History" },
-                  { to: "/fines", label: "Fines" },
-                  { to: "/profile", label: "Profile" },
-                  { to: "/members", label: "Members" },
-                ]
-              : [{ to: "/login", label: "Sign in" }]),
-            { to: "/about", label: "About" },
-            { to: "/privacy", label: "Privacy" },
-            { to: "/terms", label: "Terms" },
-          ];
-          return (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {links.map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className="group rounded-xl border border-gray-200 bg-white p-4 text-sm shadow-sm hover:border-blue-300 hover:bg-blue-50/50"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-gray-900 group-hover:text-blue-700">
-                      {l.label}
-                    </span>
-                    <span className="text-gray-400 group-hover:text-blue-600">
-                      →
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          );
-        })()}
-      </section>
-
       {/* CTA */}
       <section className="bg-gradient-to-r from-blue-600 to-indigo-600 py-14 text-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
