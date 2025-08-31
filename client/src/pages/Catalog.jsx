@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { CatalogAPI, LoansAPI, AuthAPI } from "../lib/api";
+import { CatalogAPI, LoansAPI, AuthAPI, ReservationsAPI } from "../lib/api";
 import { AuthStore } from "../lib/auth";
 
 function classNames(...c) {
@@ -139,6 +139,44 @@ const Catalog = () => {
       }
     } catch (e) {
       const msg = e?.message || "Borrow failed";
+      setToast({ type: "error", msg });
+    }
+  };
+
+  const reserve = async (bookId) => {
+    setError("");
+    setToast(null);
+    const token = AuthStore.getToken();
+    if (!token) {
+      setToast({ type: "warn", msg: "Please sign in to reserve a book." });
+      return;
+    }
+    let me;
+    try {
+      me = await AuthAPI.me(token);
+    } catch (e) {
+      setToast({ type: "error", msg: "Session expired. Sign in again." });
+      return;
+    }
+    try {
+      await ReservationsAPI.create(
+        { user_id: me.user_id, book_id: bookId, expiry_days: 7, priority_level: 1 },
+        token
+      );
+      setToast({ type: "success", msg: "Book reserved successfully. You'll be notified when it's available." });
+      // refresh books list and availability if modal open
+      try {
+        const list = await CatalogAPI.searchBooks({ ...filters });
+        setBooks(list || []);
+      } catch {}
+      if (selected && selected.book_id === bookId) {
+        try {
+          const avail = await CatalogAPI.getAvailability(bookId);
+          setSelectedAvailability(avail);
+        } catch {}
+      }
+    } catch (e) {
+      const msg = e?.message || "Reservation failed";
       setToast({ type: "error", msg });
     }
   };
@@ -290,18 +328,21 @@ const Catalog = () => {
                   >
                     Details
                   </button>
-                  <button
-                    onClick={() => borrow(b.book_id)}
-                    disabled={(b.available_copies ?? 0) <= 0}
-                    className={classNames(
-                      "inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm",
-                      (b.available_copies ?? 0) > 0
-                        ? "bg-blue-600 text-white hover:bg-blue-700"
-                        : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                    )}
-                  >
-                    Borrow
-                  </button>
+                  {(b.available_copies ?? 0) > 0 ? (
+                    <button
+                      onClick={() => borrow(b.book_id)}
+                      className="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      Borrow
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => reserve(b.book_id)}
+                      className="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-sm bg-amber-600 text-white hover:bg-amber-700"
+                    >
+                      Reserve
+                    </button>
+                  )}
                 </div>
               </article>
             ))}
@@ -467,24 +508,21 @@ const Catalog = () => {
               >
                 Close
               </button>
-              <button
-                onClick={() => borrow(selected.book_id)}
-                disabled={
-                  (selectedAvailability?.available_copies ??
-                    selected?.available_copies ??
-                    0) <= 0
-                }
-                className={classNames(
-                  "ml-2 rounded-md px-4 py-2 text-sm",
-                  (selectedAvailability?.available_copies ??
-                    selected?.available_copies ??
-                    0) > 0
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                )}
-              >
-                Borrow
-              </button>
+              {(selectedAvailability?.available_copies ?? selected?.available_copies ?? 0) > 0 ? (
+                <button
+                  onClick={() => borrow(selected.book_id)}
+                  className="ml-2 rounded-md px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Borrow
+                </button>
+              ) : (
+                <button
+                  onClick={() => reserve(selected.book_id)}
+                  className="ml-2 rounded-md px-4 py-2 text-sm bg-amber-600 text-white hover:bg-amber-700"
+                >
+                  Reserve
+                </button>
+              )}
               {me &&
                 myLoans.some(
                   (ln) =>

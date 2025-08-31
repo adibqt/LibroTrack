@@ -1,6 +1,79 @@
 const db = require("../db");
 const oracledb = require("oracledb");
 
+// GET /api/reservations - List reservations with optional filters
+exports.listReservations = async (req, res) => {
+  const { status, user_id, book_id, limit } = req.query;
+  let connection;
+  try {
+    connection = await db.getConnection();
+    
+    let whereClause = "WHERE 1=1";
+    const bindParams = {};
+    
+    if (status) {
+      whereClause += " AND r.status = :status";
+      bindParams.status = status.toUpperCase();
+    }
+    if (user_id) {
+      whereClause += " AND r.user_id = :user_id";
+      bindParams.user_id = parseInt(user_id);
+    }
+    if (book_id) {
+      whereClause += " AND r.book_id = :book_id";
+      bindParams.book_id = parseInt(book_id);
+    }
+    
+    const limitClause = limit ? `AND ROWNUM <= :limit` : "";
+    if (limit) {
+      bindParams.limit = parseInt(limit);
+    }
+    
+    const result = await connection.execute(
+      `SELECT r.reservation_id, r.user_id, r.book_id, r.status, 
+              r.reservation_date, r.expiry_date, r.priority_level,
+              u.username, u.first_name, u.last_name, u.email,
+              b.title, b.isbn
+       FROM reservations r
+       JOIN users u ON r.user_id = u.user_id
+       JOIN books b ON r.book_id = b.book_id
+       ${whereClause} ${limitClause}
+       ORDER BY r.reservation_date DESC`,
+      bindParams
+    );
+    
+    const reservations = result.rows.map(row => ({
+      reservation_id: row[0],
+      user_id: row[1],
+      book_id: row[2],
+      status: row[3],
+      reservation_date: row[4],
+      expiry_date: row[5],
+      priority_level: row[6],
+      user: {
+        username: row[7],
+        first_name: row[8],
+        last_name: row[9],
+        email: row[10]
+      },
+      book: {
+        title: row[11],
+        isbn: row[12]
+      }
+    }));
+    
+    res.json(reservations);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch {}
+    }
+  }
+};
+
 exports.createReservation = async (req, res) => {
   const { user_id, book_id, expiry_days, priority_level } = req.body || {};
   if (!user_id || !book_id) return res.status(400).json({ error: "user_id and book_id are required" });

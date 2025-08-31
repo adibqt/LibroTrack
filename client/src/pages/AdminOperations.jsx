@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearToken } from "../lib/auth";
+import { clearToken, getToken } from "../lib/auth";
 import { ReservationsAPI, LoansAPI } from "../lib/api";
 
 export default function AdminOperations() {
@@ -11,28 +11,49 @@ export default function AdminOperations() {
   };
   const goBack = () => navigate("/admin");
 
-  const [userId, setUserId] = useState("");
-  const [bookId, setBookId] = useState("");
-  const [reservationId, setReservationId] = useState("");
-  const [loanId, setLoanId] = useState("");
-  const [expiryDays, setExpiryDays] = useState("7");
-  const [priority, setPriority] = useState("1");
-  const [dueDays, setDueDays] = useState("14");
-  const [result, setResult] = useState("");
+  const [pendingReservations, setPendingReservations] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState(null);
 
-  const run = async (fn) => {
-    setBusy(true);
+  // Load pending reservations
+  const loadPendingReservations = async () => {
+    setLoading(true);
     setError("");
-    setResult("");
     try {
-      const r = await fn();
-      setResult(JSON.stringify(r, null, 2));
+      const token = getToken();
+      const reservations = await ReservationsAPI.list({ status: "PENDING" }, token);
+      setPendingReservations(reservations || []);
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Failed to load reservations");
     } finally {
-      setBusy(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPendingReservations();
+  }, []);
+
+  const handleApprove = async (reservationId) => {
+    try {
+      const token = getToken();
+      await ReservationsAPI.fulfill(reservationId, token);
+      setToast({ type: "success", msg: "Reservation approved and fulfilled successfully." });
+      await loadPendingReservations();
+    } catch (e) {
+      setToast({ type: "error", msg: e.message || "Failed to approve reservation" });
+    }
+  };
+
+  const handleDeny = async (reservationId) => {
+    try {
+      const token = getToken();
+      await ReservationsAPI.cancel(reservationId, token);
+      setToast({ type: "success", msg: "Reservation denied and cancelled." });
+      await loadPendingReservations();
+    } catch (e) {
+      setToast({ type: "error", msg: e.message || "Failed to deny reservation" });
     }
   };
 
@@ -78,202 +99,139 @@ export default function AdminOperations() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Reservation lifecycle */}
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">
-              Reservations
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  User ID
-                </label>
-                <input
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  Book ID
-                </label>
-                <input
-                  value={bookId}
-                  onChange={(e) => setBookId(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  Expiry Days
-                </label>
-                <input
-                  type="number"
-                  value={expiryDays}
-                  onChange={(e) => setExpiryDays(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  Priority
-                </label>
-                <input
-                  type="number"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(e) => {
-                  e.preventDefault();
-                  return run(() =>
-                    ReservationsAPI.create({
-                      user_id: Number(userId),
-                      book_id: Number(bookId),
-                      expiry_days: Number(expiryDays) || null,
-                      priority_level: Number(priority) || null,
-                    })
-                  );
-                }}
-                className="rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                Create
-              </button>
-              <input
-                placeholder="Reservation ID"
-                value={reservationId}
-                onChange={(e) => setReservationId(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-              />
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(e) => {
-                  e.preventDefault();
-                  return run(() =>
-                    ReservationsAPI.cancel(Number(reservationId))
-                  );
-                }}
-                className="rounded-md border border-amber-600 px-3 py-1.5 text-sm text-amber-700 hover:bg-amber-50 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(e) => {
-                  e.preventDefault();
-                  return run(() =>
-                    ReservationsAPI.fulfill(Number(reservationId))
-                  );
-                }}
-                className="rounded-md border border-emerald-600 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-              >
-                Fulfill
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(e) => {
-                  e.preventDefault();
-                  return run(() => ReservationsAPI.expireDue());
-                }}
-                className="rounded-md border border-slate-600 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              >
-                Expire due
-              </button>
-            </div>
-          </section>
+        {toast && (
+          <div className={`mb-4 rounded border px-3 py-2 text-sm ${
+            toast.type === "success" 
+              ? "border-green-200 bg-green-50 text-green-800"
+              : toast.type === "error"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : "border-yellow-200 bg-yellow-50 text-yellow-800"
+          }`}>
+            {toast.msg}
+          </div>
+        )}
 
-          {/* Loans orchestration */}
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold text-slate-900">Loans</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Pending Reservations */}
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  User ID
-                </label>
-                <input
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Pending Reservations
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Review and approve or deny book reservation requests from users.
+                </p>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  Book ID
-                </label>
-                <input
-                  value={bookId}
-                  onChange={(e) => setBookId(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600">
-                  Due Days
-                </label>
-                <input
-                  type="number"
-                  value={dueDays}
-                  onChange={(e) => setDueDays(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
               <button
-                type="button"
-                disabled={busy}
-                onClick={(e) => {
-                  e.preventDefault();
-                  return run(() =>
-                    LoansAPI.issue({
-                      user_id: Number(userId),
-                      book_id: Number(bookId),
-                      due_days: Number(dueDays) || null,
-                    })
-                  );
-                }}
-                className="rounded-md border border-blue-600 bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                onClick={loadPendingReservations}
+                disabled={loading}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
-                Issue
-              </button>
-              <input
-                placeholder="Loan ID"
-                value={loanId}
-                onChange={(e) => setLoanId(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-              />
-              <button
-                type="button"
-                disabled={busy}
-                onClick={(e) => {
-                  e.preventDefault();
-                  return run(() => LoansAPI.returnLoan(Number(loanId)));
-                }}
-                className="rounded-md border border-emerald-600 px-3 py-1.5 text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-              >
-                Return
+                {loading ? "Loading..." : "Refresh"}
               </button>
             </div>
-          </section>
-        </div>
+          </div>
 
-        {/* Result */}
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-2 text-sm font-semibold text-slate-800">Result</h2>
-          <pre className="max-h-64 overflow-auto rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
-            {result || "(none)"}
-          </pre>
+          <div className="p-4">
+            {loading ? (
+              <div className="text-center py-8 text-slate-500">Loading reservations...</div>
+            ) : pendingReservations.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                No pending reservations found.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-3 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Book
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Requested
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Expires
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Priority
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {pendingReservations.map((reservation) => (
+                      <tr key={reservation.reservation_id} className="hover:bg-slate-50">
+                        <td className="py-3 px-3">
+                          <div>
+                            <div className="text-sm font-medium text-slate-900">
+                              {reservation.user.first_name} {reservation.user.last_name}
+                            </div>
+                            <div className="text-sm text-slate-500">
+                              {reservation.user.username}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div>
+                            <div className="text-sm font-medium text-slate-900">
+                              {reservation.book.title}
+                            </div>
+                            <div className="text-sm text-slate-500">
+                              ISBN: {reservation.book.isbn}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-sm text-slate-900">
+                          {new Date(reservation.reservation_date).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-3 text-sm text-slate-900">
+                          {reservation.expiry_date 
+                            ? new Date(reservation.expiry_date).toLocaleDateString()
+                            : "No expiry"
+                          }
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            reservation.priority_level === 1 
+                              ? "bg-green-100 text-green-800"
+                              : reservation.priority_level === 2
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}>
+                            {reservation.priority_level === 1 ? "Normal" : 
+                             reservation.priority_level === 2 ? "High" : "Urgent"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleApprove(reservation.reservation_id)}
+                              className="rounded-md bg-green-600 px-3 py-1.5 text-xs text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleDeny(reservation.reservation_id)}
+                              className="rounded-md bg-red-600 px-3 py-1.5 text-xs text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </section>
       </main>
     </div>

@@ -267,6 +267,19 @@ export const MembersAPI = {
 
 // Reservations API (admin helpers)
 export const ReservationsAPI = {
+  list: (params = {}, token) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return request(`/reservations${q ? `?${q}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+  },
   create: ({ user_id, book_id, expiry_days, priority_level }, token) =>
     request(`/reservations`, {
       method: "POST",

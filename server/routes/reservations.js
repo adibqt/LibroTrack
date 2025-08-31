@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const reservations = require("../controllers/reservationsController");
 
+// List reservations
+router.get("/", reservations.listReservations);
+
 // Create reservation
 router.post("/", reservations.createReservation);
 
