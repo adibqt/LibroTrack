@@ -7,8 +7,6 @@ const app = express();
 const port = 3000;
 
 async function startServer() {
-  // Middlewares
-  app.use(cors());
   app.use(express.json());
   // Allow client app to call the API directly in dev/preview
   app.use(
@@ -20,6 +18,7 @@ async function startServer() {
         "http://127.0.0.1:5174",
         process.env.CLIENT_ORIGIN || "",
       ].filter(Boolean),
+      methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
       credentials: true,
     })
   );

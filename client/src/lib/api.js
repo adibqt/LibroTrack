@@ -140,6 +140,12 @@ export const CatalogAPI = {
       method: "DELETE",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     }),
+  // Delete a book (admin)
+  deleteBook: (bookId, token) =>
+    request(`/catalog/books/${bookId}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
 };
 
 // Loans API helpers
