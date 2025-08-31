@@ -86,10 +86,25 @@ export const AuthAPI = {
     }),
 };
 
+// Backward-compat named export expected by AdminLogin.jsx
+export const login = ({ username, password }) =>
+  AuthAPI.login(username, password);
+
 // Catalog API helpers
 export const CatalogAPI = {
   // GET /api/catalog/books?title=&author=&category=
   searchBooks: ({ title = "", author = "", category = "" } = {}) => {
+    const q = new URLSearchParams({
+      ...(title ? { title } : {}),
+      ...(author ? { author } : {}),
+      ...(category ? { category } : {}),
+    }).toString();
+    const qp = q ? `?${q}` : "";
+    return request(`/catalog/books${qp}`);
+  },
+  // Alias used by AdminBookManager
+  listBooks: (params = {}) => {
+    const { title = "", author = "", category = "" } = params || {};
     const q = new URLSearchParams({
       ...(title ? { title } : {}),
       ...(author ? { author } : {}),
@@ -153,6 +168,26 @@ export const LoansAPI = {
 
 // Fines API helpers
 export const FinesAPI = {
+  // Admin list with optional filters like user_id, status
+  list: (params = {}, token) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return request(`/fines${q ? `?${q}` : ""}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+  },
+  create: ({ user_id, amount, fine_type, description }, token) =>
+    request(`/fines`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify({ user_id, amount, fine_type, description }),
+    }),
   listForUser: (user_id, token) =>
     request(`/fines/user/${user_id}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,

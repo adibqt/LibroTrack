@@ -21,27 +21,14 @@ import AdminMemberManager from "./pages/AdminMemberManager.jsx";
 import AdminOperations from "./pages/AdminOperations.jsx";
 import AdminFines from "./pages/AdminFines.jsx";
 import AdminReports from "./pages/AdminReports.jsx";
-import { isAuthed } from "./lib/auth.js";
+import { isAdmin } from "./lib/auth.js";
 
 function PublicLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <Header />
       <main className="flex-1">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/members" element={<Members />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/my-loans" element={<MyLoans />} />
-          <Route path="/history" element={<LoanHistory />} />
-          <Route path="/fines" element={<Fines />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <Outlet />
       </main>
       <Footer />
     </div>
@@ -49,7 +36,7 @@ function PublicLayout() {
 }
 
 function Private({ children }) {
-  return isAuthed() ? children : <Navigate to="/admin/login" replace />;
+  return isAdmin() ? children : <Navigate to="/admin/login" replace />;
 }
 
 export default function App() {
@@ -62,8 +49,13 @@ export default function App() {
         <Route path="/members" element={<Members />} />
         <Route path="/about" element={<About />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/my-loans" element={<MyLoans />} />
+        <Route path="/history" element={<LoanHistory />} />
+        <Route path="/fines" element={<Fines />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
 
       {/* Admin auth + dashboard (no public header/footer) */}
@@ -117,7 +109,7 @@ export default function App() {
         }
       />
 
-      {/* Fallback */}
+      {/* Fallback for any unmatched admin paths */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

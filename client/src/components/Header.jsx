@@ -30,10 +30,16 @@ const Header = () => {
         load();
       }
     };
+    const onAuthChanged = () => {
+      setMe(null);
+      load();
+    };
     window.addEventListener("storage", onStorage);
+    window.addEventListener("auth:changed", onAuthChanged);
     return () => {
       cancelled = true;
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("auth:changed", onAuthChanged);
     };
   }, []);
 

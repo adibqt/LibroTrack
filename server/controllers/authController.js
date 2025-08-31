@@ -99,35 +99,24 @@ exports.login = async (req, res) => {
            OR LOWER(email) = LOWER(:u)`,
       { u: username }
     );
-    const cursor = result.outBinds.result;
-    const user = (await cursor.getRows(1))[0];
-    await cursor.close();
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
+    if (!userRow.rows || userRow.rows.length === 0) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
     const [
       user_id,
       db_username,
       db_email,
       db_user_type,
       db_status,
-      db_created_at,
-    ] = user;
-    // Get password from DB
-    const pwResult = await connection.execute(
-      `SELECT password_hash FROM users WHERE user_id = :user_id`,
-      { user_id }
-    );
-    const db_password = pwResult.rows?.[0]?.[0];
-    // Compare hashed password to stored hash
+      db_password_hash,
+    ] = userRow.rows[0];
+    // Compare hashed password (MD5 uppercase) to stored hash
     const input_hash = crypto
       .createHash("md5")
       .update(password)
       .digest("hex")
       .toUpperCase();
-    if (!db_password || input_hash !== db_password)
-      return res.status(401).json({ error: "Invalid credentials" });
-    }
-    const [user_id, db_username, db_email, db_user_type, db_status, db_password] = userRow.rows[0];
-    if (password !== db_password) {
+    if (!db_password_hash || input_hash !== db_password_hash) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
     const token = jwt.sign(
@@ -140,7 +129,9 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: err.message });
   } finally {
     if (connection) {
-      try { await connection.close(); } catch {}
+      try {
+        await connection.close();
+      } catch {}
     }
   }
 };
@@ -337,20 +328,26 @@ exports.resetAdminDev = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
+    // Store MD5 uppercase hash to align with login/register
+    const password_hash = crypto
+      .createHash("md5")
+      .update(password)
+      .digest("hex")
+      .toUpperCase();
     const r = await connection.execute(
       `UPDATE users
           SET password_hash = :p,
               user_type = 'ADMIN',
               status = 'ACTIVE'
         WHERE LOWER(username)=LOWER(:e) OR LOWER(email)=LOWER(:e)`,
-      { p: password, e: email }
+      { p: password_hash, e: email }
     );
     if (r.rowsAffected === 0) {
       // Insert if not exists
       await connection.execute(
         `INSERT INTO users(user_id, username, email, password_hash, first_name, last_name, user_type, status, created_at)
          VALUES (users_seq.NEXTVAL, :e, :e, :p, 'Admin', 'User', 'ADMIN', 'ACTIVE', SYSDATE)`,
-        { e: email, p: password }
+        { e: email, p: password_hash }
       );
     }
     if (connection.commit) await connection.commit();
@@ -358,6 +355,9 @@ exports.resetAdminDev = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
-    if (connection) try { await connection.close(); } catch {}
+    if (connection)
+      try {
+        await connection.close();
+      } catch {}
   }
 };
