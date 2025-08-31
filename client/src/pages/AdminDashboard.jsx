@@ -85,6 +85,14 @@ export default function AdminDashboard() {
               <div className="mt-1 text-2xl font-semibold text-amber-900">Fine Management</div>
               <div className="text-amber-800/80">List, create, settle, and waive fines.</div>
             </button>
+            <button
+              onClick={() => navigate('/admin/reports')}
+              className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-left shadow-sm transition hover:border-sky-300 hover:bg-sky-100 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            >
+              <div className="text-xs uppercase tracking-wide text-sky-700">Analytics</div>
+              <div className="mt-1 text-2xl font-semibold text-sky-900">Reports & Analytics</div>
+              <div className="text-sky-800/80">Book popularity, member activity, and fines summary.</div>
+            </button>
           </div>
         </section>
       </main>
