@@ -3,6 +3,31 @@
 const db = require("../db");
 const oracledb = require("oracledb");
 
+// GET /api/fines - List fines (optional filters: user_id, status)
+exports.listFines = async (req, res) => {
+  const user_id = req.query.user_id ? Number(req.query.user_id) : null;
+  const status = (req.query.status || "").toString().trim();
+  let connection;
+  try {
+    connection = await db.getConnection();
+    let sql = `SELECT * FROM fines`;
+    const binds = {};
+    const where = [];
+    if (user_id) { where.push(`user_id = :user_id`); binds.user_id = user_id; }
+    if (status) { where.push(`status = :status`); binds.status = status; }
+    if (where.length) sql += ` WHERE ` + where.join(" AND ");
+    sql += ` ORDER BY created_at DESC`;
+    const result = await connection.execute(sql, binds);
+    const cols = result.metaData.map(c=>c.name.toLowerCase());
+    const rows = result.rows.map(r => Object.fromEntries(r.map((v,i)=>[cols[i], v])));
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) { try { await connection.close(); } catch {} }
+  }
+};
+
 // POST /api/fines - Assess a new fine
 exports.assessFine = async (req, res) => {
   const body = req.body || {};

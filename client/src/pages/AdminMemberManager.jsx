@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearToken } from "../lib/auth";
-import { MembersAPI } from "../lib/api";
+import { MembersAPI, FinesAPI } from "../lib/api";
 
 export default function AdminMemberManager() {
   const navigate = useNavigate();
@@ -14,6 +14,7 @@ export default function AdminMemberManager() {
   const [profile, setProfile] = useState(null);
   const [reservations, setReservations] = useState([]);
   const [loans, setLoans] = useState([]);
+  const [fines, setFines] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -27,17 +28,19 @@ export default function AdminMemberManager() {
   };
 
   const loadDetails = async (userId) => {
-    if (!userId) { setProfile(null); setReservations([]); setLoans([]); return; }
+    if (!userId) { setProfile(null); setReservations([]); setLoans([]); setFines([]); return; }
     setLoading(true); setError("");
     try {
-      const [p, rh, lh] = await Promise.all([
+      const [p, rh, lh, fh] = await Promise.all([
         MembersAPI.get(userId),
         MembersAPI.reservationHistory(userId, { limit: 50 }),
         MembersAPI.loansHistory(userId, { limit: 50 }),
+        FinesAPI.list({ user_id: userId })
       ]);
       setProfile(p);
       setReservations(rh);
       setLoans(lh);
+      setFines(fh);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -231,7 +234,7 @@ export default function AdminMemberManager() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div>
                     <h3 className="mb-2 text-sm font-semibold text-slate-800">Recent Loans</h3>
                     <div className="max-h-48 overflow-auto rounded border border-slate-200">
@@ -279,6 +282,34 @@ export default function AdminMemberManager() {
                           ))}
                           {reservations.length === 0 && (
                             <tr><td className="px-3 py-3 text-center text-slate-500" colSpan={3}>No history</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-800">Fines</h3>
+                    <div className="max-h-48 overflow-auto rounded border border-slate-200">
+                      <table className="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="px-3 py-1.5 text-left font-medium text-slate-700">Fine ID</th>
+                            <th className="px-3 py-1.5 text-left font-medium text-slate-700">Type</th>
+                            <th className="px-3 py-1.5 text-left font-medium text-slate-700">Amount</th>
+                            <th className="px-3 py-1.5 text-left font-medium text-slate-700">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200">
+                          {fines.map((f) => (
+                            <tr key={f.fine_id}>
+                              <td className="px-3 py-1.5 text-slate-700">{f.fine_id}</td>
+                              <td className="px-3 py-1.5">{f.fine_type}</td>
+                              <td className="px-3 py-1.5">{f.amount}</td>
+                              <td className="px-3 py-1.5">{f.status}</td>
+                            </tr>
+                          ))}
+                          {fines.length === 0 && (
+                            <tr><td className="px-3 py-3 text-center text-slate-500" colSpan={4}>No fines</td></tr>
                           )}
                         </tbody>
                       </table>

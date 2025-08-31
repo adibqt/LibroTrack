@@ -51,7 +51,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick stats placeholder (future) */}
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {/* Primary tile becomes a Book Management button */}
             <button
               onClick={() => navigate('/admin/books')}
@@ -76,6 +76,14 @@ export default function AdminDashboard() {
               <div className="text-xs uppercase tracking-wide text-purple-700">Operations</div>
               <div className="mt-1 text-2xl font-semibold text-purple-900">Reservations & Loans</div>
               <div className="text-purple-800/80">Create/cancel/fulfill/expire reservations and issue/return loans.</div>
+            </button>
+            <button
+              onClick={() => navigate('/admin/fines')}
+              className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300"
+            >
+              <div className="text-xs uppercase tracking-wide text-amber-700">Finance</div>
+              <div className="mt-1 text-2xl font-semibold text-amber-900">Fine Management</div>
+              <div className="text-amber-800/80">List, create, settle, and waive fines.</div>
             </button>
           </div>
         </section>

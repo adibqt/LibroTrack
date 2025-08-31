@@ -132,3 +132,22 @@ export const LoansAPI = {
   returnLoan: (loanId) =>
     apiFetch(`/api/loans/${loanId}/return`, { method: "POST" }),
 };
+
+// Fines API
+export const FinesAPI = {
+  list: (params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return apiFetch(`/api/fines${q ? `?${q}` : ""}`);
+  },
+  create: ({ user_id, amount, fine_type }) =>
+    apiFetch(`/api/fines`, { method: "POST", body: JSON.stringify({ user_id, amount, fine_type }) }),
+  settle: (fineId) => apiFetch(`/api/fines/${fineId}/pay`, { method: "PATCH" }),
+  waive: (fineId) => apiFetch(`/api/fines/${fineId}/waive`, { method: "PATCH" }),
+};

@@ -15,6 +15,7 @@ import AdminDashboard from "./pages/AdminDashboard.jsx";
 import AdminBookManager from "./pages/AdminBookManager.jsx";
 import AdminMemberManager from "./pages/AdminMemberManager.jsx";
 import AdminOperations from "./pages/AdminOperations.jsx";
+import AdminFines from "./pages/AdminFines.jsx";
 import { isAuthed } from "./lib/auth.js";
 
 function PublicLayout() {
@@ -78,6 +79,14 @@ export default function App() {
         element={
           <Private>
             <AdminOperations />
+          </Private>
+        }
+      />
+      <Route
+        path="/admin/fines"
+        element={
+          <Private>
+            <AdminFines />
           </Private>
         }
       />

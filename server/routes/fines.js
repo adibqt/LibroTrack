@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 const finesController = require("../controllers/finesController");
 
+// GET /api/fines - List fines
+router.get("/", finesController.listFines);
+
 // POST /api/fines - Assess a new fine
 router.post("/", finesController.assessFine);
 
