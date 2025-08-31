@@ -168,4 +168,100 @@ export const FinesAPI = {
     }),
 };
 
-export default { request, AuthAPI, CatalogAPI, LoansAPI, FinesAPI };
+// Categories API (admin helpers)
+export const CategoriesAPI = {
+  list: () => request(`/categories`),
+  create: ({ category_name, description }, token) =>
+    request(`/categories`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify({ category_name, description }),
+    }),
+};
+
+// Members API (admin helpers)
+export const MembersAPI = {
+  list: (params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return request(`/members${q ? `?${q}` : ""}`);
+  },
+  get: (userId) => request(`/members/${userId}`),
+  update: (userId, payload, token) =>
+    request(`/members/${userId}`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify(payload),
+    }),
+  remove: (userId, token) =>
+    request(`/members/${userId}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  reservationHistory: (userId, params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return request(
+      `/members/${userId}/history/reservations${q ? `?${q}` : ""}`
+    );
+  },
+  loansHistory: (userId, params) => {
+    const qs = new URLSearchParams();
+    if (params && typeof params === "object") {
+      for (const [k, v] of Object.entries(params)) {
+        const val = v == null ? "" : String(v);
+        if (val.trim() !== "") qs.set(k, val);
+      }
+    }
+    const q = qs.toString();
+    return request(`/members/${userId}/history/loans${q ? `?${q}` : ""}`);
+  },
+};
+
+// Reservations API (admin helpers)
+export const ReservationsAPI = {
+  create: ({ user_id, book_id, expiry_days, priority_level }, token) =>
+    request(`/reservations`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify({ user_id, book_id, expiry_days, priority_level }),
+    }),
+  cancel: (reservationId, token) =>
+    request(`/reservations/${reservationId}/cancel`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  fulfill: (reservationId, token) =>
+    request(`/reservations/${reservationId}/fulfill`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  expireDue: (token) =>
+    request(`/reservations/expire/run`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+};
+
+export default {
+  request,
+  AuthAPI,
+  CatalogAPI,
+  LoansAPI,
+  FinesAPI,
+  CategoriesAPI,
+  MembersAPI,
+  ReservationsAPI,
+};

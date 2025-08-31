@@ -40,4 +40,7 @@ router.delete(
   catalogController.removeAuthorFromBook
 );
 
+// DELETE /api/catalog/books/:bookId - Delete a book (admin)
+router.delete("/books/:bookId", catalogController.deleteBook);
+
 module.exports = router;
