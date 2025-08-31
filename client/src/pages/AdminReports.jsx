@@ -1,7 +1,20 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearToken } from "../lib/auth";
 import { API_BASE } from "../lib/api";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 async function fetchJson(path) {
   const res = await fetch(`${API_BASE}${path}`);
@@ -77,7 +90,27 @@ export default function AdminReports() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs uppercase tracking-wide text-slate-500">Top Books</div>
-              <div className="mt-2 space-y-1">
+              {/* Mini chart: top 5 books by loan_count */}
+              <div className="mt-3 h-40 w-full">
+                {(() => {
+                  const top5 = [...popular]
+                    .sort((a,b)=> (Number(b.loan_count)||0)-(Number(a.loan_count)||0))
+                    .slice(0,5);
+                  if (top5.length === 0) return <div className="text-sm text-slate-500">No data</div>;
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={top5} layout="vertical" margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <YAxis dataKey="title" type="category" width={140} tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                        <XAxis type="number" hide allowDecimals={false} />
+                        <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                        <Bar dataKey="loan_count" name="Loans" fill="#0ea5e9" radius={[3,3,3,3]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
+              </div>
+              <div className="mt-3 space-y-1">
                 {popular.slice(0,5).map((b)=> (
                   <div key={b.book_id} className="flex items-center justify-between text-sm">
                     <span className="truncate pr-2">{b.title}</span>
@@ -89,7 +122,46 @@ export default function AdminReports() {
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs uppercase tracking-wide text-slate-500">Most Active Members</div>
-              <div className="mt-2 space-y-1">
+              {/* Mini stacked chart: top 5 members by (loan_count + reservation_count) */}
+              <div className="mt-3 h-40 w-full">
+                {(() => {
+                  const top5 = [...activity]
+                    .sort((a,b)=> ((Number(b.loan_count)||0)+(Number(b.reservation_count)||0)) - ((Number(a.loan_count)||0)+(Number(a.reservation_count)||0)))
+                    .slice(0,5);
+                  if (top5.length === 0) return <div className="text-sm text-slate-500">No data</div>;
+                  return (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={top5} layout="vertical" margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <YAxis
+                          dataKey="user_id"
+                          type="category"
+                          width={140}
+                          tickLine={false}
+                          axisLine={false}
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(_, idx) => {
+                            const d = top5[idx];
+                            return d ? `${d.first_name} ${d.last_name}` : '';
+                          }}
+                        />
+                        <XAxis type="number" hide allowDecimals={false} />
+                        <Tooltip
+                          cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                          formatter={(value, name) => [value, name === 'loan_count' ? 'Loans' : name === 'reservation_count' ? 'Reservations' : name]}
+                          labelFormatter={(_, idx) => {
+                            const d = top5[idx];
+                            return d ? `${d.first_name} ${d.last_name}` : '';
+                          }}
+                        />
+                        <Bar dataKey="loan_count" name="Loans" stackId="a" fill="#10b981" radius={[3,3,3,3]} />
+                        <Bar dataKey="reservation_count" name="Reservations" stackId="a" fill="#60a5fa" radius={[3,3,3,3]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  );
+                })()}
+              </div>
+              <div className="mt-3 space-y-1">
                 {activity.sort((a,b)=> (b.loan_count+b.reservation_count) - (a.loan_count+a.reservation_count)).slice(0,5).map((m)=> (
                   <div key={m.user_id} className="flex items-center justify-between text-sm">
                     <span className="truncate pr-2">{m.first_name} {m.last_name}</span>
@@ -101,15 +173,44 @@ export default function AdminReports() {
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="text-xs uppercase tracking-wide text-slate-500">Fines</div>
-              <div className="mt-2 text-sm">
+              <div className="mt-2">
                 {fines[0] ? (
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    <div className="text-slate-600">Total fines</div><div className="text-right font-medium">{fines[0].total_fines}</div>
-                    <div className="text-slate-600">Unpaid</div><div className="text-right font-medium">{fines[0].unpaid_fines} ({fines[0].unpaid_amount})</div>
-                    <div className="text-slate-600">Paid</div><div className="text-right font-medium">{fines[0].paid_fines} ({fines[0].paid_amount})</div>
-                    <div className="text-slate-600">Waived</div><div className="text-right font-medium">{fines[0].waived_fines} ({fines[0].waived_amount})</div>
-                  </div>
-                ) : <div className="text-slate-500">No data</div>}
+                  <>
+                    {/* Mini pie for fines distribution by count */}
+                    <div className="h-40 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Tooltip />
+                          <Pie
+                            data={[
+                              { name: 'Unpaid', value: Number(fines[0].unpaid_fines)||0 },
+                              { name: 'Paid', value: Number(fines[0].paid_fines)||0 },
+                              { name: 'Waived', value: Number(fines[0].waived_fines)||0 },
+                            ]}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={35}
+                            outerRadius={55}
+                            paddingAngle={2}
+                          >
+                            {['#ef4444','#10b981','#94a3b8'].map((c, idx)=> (
+                              <Cell key={`cell-${idx}`} fill={c} />
+                            ))}
+                          </Pie>
+                          <Legend verticalAlign="bottom" height={24} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      <div className="text-slate-600">Total fines</div><div className="text-right font-medium">{fines[0].total_fines}</div>
+                      <div className="text-slate-600">Unpaid</div><div className="text-right font-medium">{fines[0].unpaid_fines} ({fines[0].unpaid_amount})</div>
+                      <div className="text-slate-600">Paid</div><div className="text-right font-medium">{fines[0].paid_fines} ({fines[0].paid_amount})</div>
+                      <div className="text-slate-600">Waived</div><div className="text-right font-medium">{fines[0].waived_fines} ({fines[0].waived_amount})</div>
+                    </div>
+                  </>
+                ) : <div className="text-sm text-slate-500">No data</div>}
               </div>
             </div>
           </div>
@@ -118,6 +219,27 @@ export default function AdminReports() {
         {(tab === 'books') && (
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold text-slate-800">Book Popularity</h2>
+            {/* Chart: vertical bar chart using existing data keys: title, loan_count */}
+            <div className="mb-4 h-72 w-full">
+              {(() => {
+                const top = [...popular]
+                  .sort((a,b)=> (Number(b.loan_count)||0)-(Number(a.loan_count)||0))
+                  .slice(0, 10);
+                if (top.length === 0) return <div className="text-sm text-slate-500">No data</div>;
+                return (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={top} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      {/* Use existing key 'title' for category labels */}
+                      <YAxis dataKey="title" type="category" width={180} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                      <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip cursor={{ fill: "rgba(0,0,0,0.04)" }} />
+                      <Bar dataKey="loan_count" name="Loans" fill="#0ea5e9" radius={[4,4,4,4]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })()}
+            </div>
             <div className="max-h-[60vh] overflow-auto rounded border border-slate-200">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50">
@@ -145,6 +267,47 @@ export default function AdminReports() {
         {(tab === 'members') && (
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-sm font-semibold text-slate-800">Member Activity</h2>
+            {/* Chart: stacked vertical bars using existing keys: loan_count + reservation_count */}
+            <div className="mb-4 h-72 w-full">
+              {(() => {
+                const top = [...activity]
+                  .sort((a,b)=> ((Number(b.loan_count)||0)+(Number(b.reservation_count)||0)) - ((Number(a.loan_count)||0)+(Number(a.reservation_count)||0)))
+                  .slice(0, 10);
+                if (top.length === 0) return <div className="text-sm text-slate-500">No data</div>;
+                return (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={top} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 16 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      {/* Use user_id as the key and format ticks to show full name without changing data shape */}
+                      <YAxis
+                        dataKey="user_id"
+                        type="category"
+                        width={180}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 12 }}
+                        tickFormatter={(_, idx) => {
+                          const d = top[idx];
+                          return d ? `${d.first_name} ${d.last_name}` : '';
+                        }}
+                      />
+                      <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
+                      <Tooltip
+                        cursor={{ fill: "rgba(0,0,0,0.04)" }}
+                        formatter={(value, name) => [value, name === 'loan_count' ? 'Loans' : name === 'reservation_count' ? 'Reservations' : name]}
+                        labelFormatter={(_, idx) => {
+                          const d = top[idx];
+                          return d ? `${d.first_name} ${d.last_name}` : '';
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="loan_count" name="Loans" stackId="a" fill="#10b981" radius={[4,4,4,4]} />
+                      <Bar dataKey="reservation_count" name="Reservations" stackId="a" fill="#60a5fa" radius={[4,4,4,4]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })()}
+            </div>
             <div className="max-h-[60vh] overflow-auto rounded border border-slate-200">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50">
