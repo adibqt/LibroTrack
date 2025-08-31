@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { CatalogAPI, CategoriesAPI } from "../lib/api";
-import { clearToken } from "../lib/auth";
+import { clearToken, AuthStore } from "../lib/auth";
 
 function TextField({ label, ...props }) {
   return (
@@ -153,7 +153,8 @@ export default function AdminBookManager() {
   const onDelete = async (id) => {
     if (!confirm("Delete this book? This cannot be undone.")) return;
     try {
-      await CatalogAPI.deleteBook(id);
+  const token = AuthStore.getToken();
+  await CatalogAPI.deleteBook(id, token);
       await fetchAll();
     } catch (e) {
       setError(e.message || "Delete failed");

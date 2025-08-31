@@ -361,18 +361,58 @@ exports.removeAuthorFromBook = async (req, res) => {
 // DELETE /api/catalog/books/:bookId - Delete a book (admin)
 exports.deleteBook = async (req, res) => {
   let connection;
+  const bookId = req.params.bookId;
   try {
     connection = await db.getConnection();
+
+    // Guard: do not allow deletion if there are active (ISSUED) loans
+    const activeLoans = await connection.execute(
+      `SELECT COUNT(*) AS cnt FROM loans WHERE book_id = :book_id AND status = 'ISSUED'`,
+      { book_id: bookId }
+    );
+    const cnt = Array.isArray(activeLoans.rows[0])
+      ? activeLoans.rows[0][0]
+      : activeLoans.rows[0].CNT;
+    if (cnt > 0) {
+      return res
+        .status(400)
+        .json({ error: "Cannot delete a book with active (ISSUED) loans" });
+    }
+
+    // Best-effort cleanup of dependent rows to satisfy FKs
+    await connection.execute(
+      `DELETE FROM notifications WHERE book_id = :book_id`,
+      { book_id: bookId }
+    );
+    await connection.execute(
+      `DELETE FROM reservations WHERE book_id = :book_id`,
+      { book_id: bookId }
+    );
+    // Delete historical (non-ISSUED) loans if present
+    await connection.execute(
+      `DELETE FROM loans WHERE book_id = :book_id`,
+      { book_id: bookId }
+    );
+
+    // book_authors rows are ON DELETE CASCADE; removing book will clear the join table
     const result = await connection.execute(
       `DELETE FROM books WHERE book_id = :book_id`,
-      { book_id: req.params.bookId }
+      { book_id: bookId }
     );
     if (connection.commit) await connection.commit();
-    if ((result.rowsAffected || 0) === 0)
+    if ((result.rowsAffected || 0) === 0) {
       return res.status(404).json({ error: "Book not found" });
+    }
     res.json({ message: "Book deleted" });
   } catch (err) {
     console.error("Error deleting book:", err);
+    // Surface FK violation in a friendlier way
+    const msg = String(err && err.message || "");
+    if (msg.includes("ORA-02292")) {
+      return res
+        .status(400)
+        .json({ error: "Cannot delete book due to related records (loans/reservations/notifications). Clear dependencies first." });
+    }
     res.status(500).json({ error: err.message || "Internal server error" });
   } finally {
     if (connection) {
