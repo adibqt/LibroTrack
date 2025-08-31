@@ -40,41 +40,36 @@ exports.getBooks = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
-    const result = await connection.execute(
-      `BEGIN PKG_CATALOG.search_books(:title, :author, :category, :result); END;`,
-      {
-        title: title || null,
-        author: author || null,
-        category: category || null,
-        result: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
-      }
-    );
-    const resultSet = result.outBinds.result;
-    const rows = await resultSet.getRows();
-    await resultSet.close();
-    // Always map to objects with keys
-    let columns;
-    if (rows.length > 0 && resultSet.metaData) {
-      columns = resultSet.metaData.map((col) => col.name.toLowerCase());
-    } else {
-      // Fallback: match the new SELECT in PKG_CATALOG.search_books
-      columns = [
-        "book_id",
-        "isbn",
-        "title",
-        "category_id",
-        "publication_year",
-        "publisher",
-        "language",
-        "description",
-        "location_shelf",
-        "total_copies",
-        "available_copies",
-        "reserved_copies",
-        "status",
-      ];
-    }
-    const data = rows.map((row) =>
+  const sql = `
+      SELECT DISTINCT
+        b.book_id,
+        b.isbn,
+        b.title,
+        b.category_id,
+        b.publication_year,
+        b.publisher,
+    b.language,
+    DBMS_LOB.SUBSTR(b.description, 4000, 1) AS description,
+        b.location_shelf,
+        b.total_copies,
+        b.available_copies,
+        b.reserved_copies,
+        b.status
+      FROM books b
+      JOIN categories c ON b.category_id = c.category_id
+      LEFT JOIN book_authors ba ON b.book_id = ba.book_id
+      LEFT JOIN authors a ON ba.author_id = a.author_id
+      WHERE (:title IS NULL OR LOWER(b.title) LIKE '%' || LOWER(:title) || '%')
+        AND (:author IS NULL OR LOWER(a.first_name || ' ' || a.last_name) LIKE '%' || LOWER(:author) || '%')
+        AND (:category IS NULL OR LOWER(c.category_name) LIKE '%' || LOWER(:category) || '%')
+      ORDER BY b.title`;
+    const result = await connection.execute(sql, {
+      title: title || null,
+      author: author || null,
+      category: category || null,
+    });
+    const columns = result.metaData.map((col) => col.name.toLowerCase());
+    const data = result.rows.map((row) =>
       Object.fromEntries(row.map((v, i) => [columns[i], v]))
     );
     res.json(data);
@@ -95,41 +90,33 @@ exports.getBookById = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
-    const result = await connection.execute(
-      `BEGIN PKG_CATALOG.get_book_by_id(:book_id, :result); END;`,
-      {
-        book_id: req.params.bookId,
-        result: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
-      }
+  const result = await connection.execute(
+      `SELECT 
+        b.book_id,
+        b.isbn,
+        b.title,
+        b.category_id,
+        b.publication_year,
+        b.publisher,
+    b.language,
+    DBMS_LOB.SUBSTR(b.description, 4000, 1) AS description,
+        b.location_shelf,
+        b.total_copies,
+        b.available_copies,
+        b.reserved_copies,
+        b.status,
+        c.category_name
+       FROM books b
+       JOIN categories c ON b.category_id = c.category_id
+       WHERE b.book_id = :book_id`,
+      { book_id: req.params.bookId }
     );
-    const resultSet = result.outBinds.result;
-    const rows = await resultSet.getRows();
-    await resultSet.close();
-    if (rows.length === 0)
+    if (result.rows.length === 0)
       return res.status(404).json({ error: "Book not found" });
-    let columns;
-    if (rows.length > 0 && resultSet.metaData) {
-      columns = resultSet.metaData.map((col) => col.name.toLowerCase());
-    } else {
-      // Fallback: match the SELECT in get_book_by_id
-      columns = [
-        "book_id",
-        "isbn",
-        "title",
-        "category_id",
-        "publication_year",
-        "publisher",
-        "language",
-        "description",
-        "location_shelf",
-        "total_copies",
-        "available_copies",
-        "reserved_copies",
-        "status",
-        "category_name",
-      ];
-    }
-    const data = Object.fromEntries(rows[0].map((v, i) => [columns[i], v]));
+    const columns = result.metaData.map((col) => col.name.toLowerCase());
+    const data = Object.fromEntries(
+      result.rows[0].map((v, i) => [columns[i], v])
+    );
     res.json(data);
   } catch (err) {
     console.error("Error fetching book by id:", err);
@@ -226,7 +213,11 @@ exports.createBook = async (req, res) => {
   try {
     connection = await db.getConnection();
     const result = await connection.execute(
-      `BEGIN PKG_CATALOG.create_book(:isbn, :title, :category_id, :publication_year, :publisher, :language, :description, :location_shelf, :total_copies, :book_id); END;`,
+      `INSERT INTO books (
+        book_id, isbn, title, category_id, publication_year, publisher, language, description, location_shelf, total_copies, available_copies, reserved_copies, status, added_date
+      ) VALUES (
+        books_seq.NEXTVAL, :isbn, :title, :category_id, :publication_year, :publisher, :language, :description, :location_shelf, :total_copies, :total_copies, 0, 'AVAILABLE', SYSDATE
+      ) RETURNING book_id INTO :book_id`,
       {
         isbn,
         title,
@@ -240,10 +231,14 @@ exports.createBook = async (req, res) => {
         book_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       }
     );
-    res.status(201).json({ book_id: result.outBinds.book_id });
+    if (connection.commit) await connection.commit();
+    const newId = Array.isArray(result.outBinds.book_id)
+      ? result.outBinds.book_id[0]
+      : result.outBinds.book_id;
+    res.status(201).json({ book_id: newId });
   } catch (err) {
     console.error("Error creating book:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: err.message || "Internal server error" });
   } finally {
     if (connection) {
       try {
@@ -270,8 +265,19 @@ exports.updateBook = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
-    await connection.execute(
-      `BEGIN PKG_CATALOG.update_book(:book_id, :isbn, :title, :category_id, :publication_year, :publisher, :language, :description, :location_shelf, :total_copies, :status); END;`,
+    const result = await connection.execute(
+      `UPDATE books SET
+        isbn = :isbn,
+        title = :title,
+        category_id = :category_id,
+        publication_year = :publication_year,
+        publisher = :publisher,
+        language = :language,
+        description = :description,
+        location_shelf = :location_shelf,
+        total_copies = :total_copies,
+        status = :status
+      WHERE book_id = :book_id`,
       {
         book_id: req.params.bookId,
         isbn,
@@ -286,10 +292,13 @@ exports.updateBook = async (req, res) => {
         status,
       }
     );
+    if (connection.commit) await connection.commit();
+    if ((result.rowsAffected || 0) === 0)
+      return res.status(404).json({ error: "Book not found" });
     res.json({ message: "Book updated" });
   } catch (err) {
     console.error("Error updating book:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: err.message || "Internal server error" });
   } finally {
     if (connection) {
       try {
@@ -340,6 +349,31 @@ exports.removeAuthorFromBook = async (req, res) => {
   } catch (err) {
     console.error("Error removing author from book:", err);
     res.status(500).json({ error: "Internal server error" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (e) {}
+    }
+  }
+};
+
+// DELETE /api/catalog/books/:bookId - Delete a book (admin)
+exports.deleteBook = async (req, res) => {
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const result = await connection.execute(
+      `DELETE FROM books WHERE book_id = :book_id`,
+      { book_id: req.params.bookId }
+    );
+    if (connection.commit) await connection.commit();
+    if ((result.rowsAffected || 0) === 0)
+      return res.status(404).json({ error: "Book not found" });
+    res.json({ message: "Book deleted" });
+  } catch (err) {
+    console.error("Error deleting book:", err);
+    res.status(500).json({ error: err.message || "Internal server error" });
   } finally {
     if (connection) {
       try {

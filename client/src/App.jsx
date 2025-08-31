@@ -12,6 +12,7 @@ import Terms from "./pages/Terms.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import AdminLogin from "./pages/AdminLogin.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
+import AdminBookManager from "./pages/AdminBookManager.jsx";
 import { isAuthed } from "./lib/auth.js";
 
 function PublicLayout() {
@@ -51,6 +52,14 @@ export default function App() {
         element={
           <Private>
             <AdminDashboard />
+          </Private>
+        }
+      />
+      <Route
+        path="/admin/books"
+        element={
+          <Private>
+            <AdminBookManager />
           </Private>
         }
       />
