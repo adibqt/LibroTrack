@@ -31,6 +31,7 @@ export const authHeader = () => {
 
 // Convenience named exports used across pages
 export const isAuthed = () => AuthStore.isAuthenticated();
+export const getToken = () => AuthStore.getToken();
 export const setToken = (t) => AuthStore.setToken(t);
 export const clearToken = () => {
   // Clear both user token and admin session for safety

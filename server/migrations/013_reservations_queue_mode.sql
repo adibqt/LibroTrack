@@ -1,11 +1,17 @@
--- PKG_RESERVATIONS provides create, cancel, fulfill, and expiry processing
+-- 013_reservations_queue_mode.sql
+-- Switch PKG_RESERVATIONS to queue semantics:
+-- - Allow creating reservations even when no copies are available
+-- - Do NOT decrease available_copies at reservation time
+-- - Track queue length in books.reserved_copies
+-- - On fulfilment, consume an available copy via PKG_STOCK.checkout_copy and decrement reserved_copies
+-- - On cancel/expire, decrement reserved_copies only
 
 CREATE OR REPLACE PACKAGE PKG_RESERVATIONS AS
   PROCEDURE create_reservation(
-    p_user_id      IN NUMBER,
-    p_book_id      IN NUMBER,
-    p_expiry_days  IN NUMBER DEFAULT 3,
-    p_priority     IN NUMBER DEFAULT 1,
+    p_user_id        IN NUMBER,
+    p_book_id        IN NUMBER,
+    p_expiry_days    IN NUMBER DEFAULT 3,
+    p_priority       IN NUMBER DEFAULT 1,
     p_reservation_id OUT NUMBER
   );
   PROCEDURE cancel_reservation(p_reservation_id IN NUMBER);
@@ -16,46 +22,36 @@ END PKG_RESERVATIONS;
 
 CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
   PROCEDURE create_reservation(
-    p_user_id      IN NUMBER,
-    p_book_id      IN NUMBER,
-    p_expiry_days  IN NUMBER DEFAULT 3,
-    p_priority     IN NUMBER DEFAULT 1,
+    p_user_id        IN NUMBER,
+    p_book_id        IN NUMBER,
+    p_expiry_days    IN NUMBER DEFAULT 3,
+    p_priority       IN NUMBER DEFAULT 1,
     p_reservation_id OUT NUMBER
   ) IS
-    v_avail   NUMBER;
     v_exists  NUMBER;
     v_dummy   NUMBER;
   BEGIN
-    -- validate user exists
+    -- Validate user exists
     SELECT COUNT(*) INTO v_dummy FROM users WHERE user_id = p_user_id;
     IF v_dummy = 0 THEN
       RAISE_APPLICATION_ERROR(-20015, 'Invalid user_id');
     END IF;
 
-    -- validate book exists
+    -- Validate book exists
     SELECT COUNT(*) INTO v_dummy FROM books WHERE book_id = p_book_id;
     IF v_dummy = 0 THEN
       RAISE_APPLICATION_ERROR(-20014, 'Invalid book_id');
     END IF;
 
-    -- prevent duplicate pending reservation for same user/book
+    -- Prevent duplicate pending reservation for same user/book
     SELECT COUNT(*) INTO v_exists
       FROM reservations
-      WHERE user_id = p_user_id AND book_id = p_book_id AND status = 'PENDING';
+     WHERE user_id = p_user_id AND book_id = p_book_id AND status = 'PENDING';
     IF v_exists > 0 THEN
       RAISE_APPLICATION_ERROR(-20010, 'An active reservation already exists for this user and book');
     END IF;
 
-    -- lock the book row and ensure availability
-    SELECT available_copies INTO v_avail
-      FROM books
-      WHERE book_id = p_book_id
-      FOR UPDATE;
-
-    IF v_avail <= 0 THEN
-      RAISE_APPLICATION_ERROR(-20011, 'No available copies to reserve');
-    END IF;
-
+    -- Queue a reservation regardless of current availability
     SELECT reservations_seq.NEXTVAL INTO p_reservation_id FROM dual;
 
     INSERT INTO reservations (
@@ -64,10 +60,10 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
       p_reservation_id, p_user_id, p_book_id, SYSTIMESTAMP, SYSDATE + NVL(p_expiry_days, 3), 'PENDING', NVL(p_priority, 1), 'NO'
     );
 
+    -- Track queue length (do not change available_copies here)
     UPDATE books
-      SET reserved_copies = reserved_copies + 1,
-          available_copies = available_copies - 1
-      WHERE book_id = p_book_id;
+       SET reserved_copies = reserved_copies + 1
+     WHERE book_id = p_book_id;
 
     COMMIT;
   END create_reservation;
@@ -79,8 +75,8 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
     BEGIN
       SELECT book_id, status INTO v_book_id, v_status
         FROM reservations
-        WHERE reservation_id = p_reservation_id
-        FOR UPDATE;
+       WHERE reservation_id = p_reservation_id
+         FOR UPDATE;
     EXCEPTION
       WHEN NO_DATA_FOUND THEN
         RAISE_APPLICATION_ERROR(-20016, 'Reservation not found');
@@ -91,26 +87,27 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
     END IF;
 
     UPDATE reservations
-      SET status = 'CANCELLED'
-      WHERE reservation_id = p_reservation_id;
+       SET status = 'CANCELLED'
+     WHERE reservation_id = p_reservation_id;
 
+    -- Reduce queue length; availability unchanged
     UPDATE books
-      SET reserved_copies = reserved_copies - 1,
-          available_copies = available_copies + 1
-      WHERE book_id = v_book_id;
+       SET reserved_copies = reserved_copies - 1
+     WHERE book_id = v_book_id;
 
     COMMIT;
   END cancel_reservation;
 
   PROCEDURE fulfill_reservation(p_reservation_id IN NUMBER) IS
-    v_book_id  NUMBER;
-    v_status   VARCHAR2(20);
+    v_user_id NUMBER;
+    v_book_id NUMBER;
+    v_status  VARCHAR2(20);
   BEGIN
     BEGIN
-      SELECT book_id, status INTO v_book_id, v_status
+      SELECT user_id, book_id, status INTO v_user_id, v_book_id, v_status
         FROM reservations
-        WHERE reservation_id = p_reservation_id
-        FOR UPDATE;
+       WHERE reservation_id = p_reservation_id
+         FOR UPDATE;
     EXCEPTION
       WHEN NO_DATA_FOUND THEN
         RAISE_APPLICATION_ERROR(-20016, 'Reservation not found');
@@ -120,14 +117,17 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
       RAISE_APPLICATION_ERROR(-20013, 'Only PENDING reservations can be fulfilled');
     END IF;
 
+    -- Attempt to consume one available copy; raises if none available
+    PKG_STOCK.checkout_copy(p_book_id => v_book_id, p_user_id => v_user_id);
+
+    -- Mark reservation fulfilled and reduce queue length
     UPDATE reservations
-      SET status = 'FULFILLED'
-      WHERE reservation_id = p_reservation_id;
+       SET status = 'FULFILLED'
+     WHERE reservation_id = p_reservation_id;
 
     UPDATE books
-      SET reserved_copies = reserved_copies - 1,
-          available_copies = available_copies + 1
-      WHERE book_id = v_book_id;
+       SET reserved_copies = reserved_copies - 1
+     WHERE book_id = v_book_id;
 
     COMMIT;
   END fulfill_reservation;
@@ -136,27 +136,22 @@ CREATE OR REPLACE PACKAGE BODY PKG_RESERVATIONS AS
   BEGIN
     FOR r IN (
       SELECT reservation_id, book_id
-      FROM reservations
-      WHERE status = 'PENDING'
-        AND expiry_date < SYSDATE
-      FOR UPDATE
+        FROM reservations
+       WHERE status = 'PENDING'
+         AND expiry_date < SYSDATE
+       FOR UPDATE
     ) LOOP
       UPDATE reservations
-        SET status = 'EXPIRED'
-        WHERE reservation_id = r.reservation_id;
+         SET status = 'EXPIRED'
+       WHERE reservation_id = r.reservation_id;
 
+      -- Reduce queue length; availability unchanged
       UPDATE books
-        SET reserved_copies = reserved_copies - 1,
-            available_copies = available_copies + 1
-        WHERE book_id = r.book_id;
+         SET reserved_copies = reserved_copies - 1
+       WHERE book_id = r.book_id;
     END LOOP;
 
     COMMIT;
   END expire_due_reservations;
 END PKG_RESERVATIONS;
 /
-
--- Helpful indexes
-CREATE INDEX idx_reservations_status ON reservations(status);
-CREATE INDEX idx_reservations_book_status ON reservations(book_id, status);
-CREATE INDEX idx_reservations_user_status ON reservations(user_id, status);
