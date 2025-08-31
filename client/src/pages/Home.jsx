@@ -1,7 +1,34 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import api, { CatalogAPI } from "../lib/api";
 
 const Home = () => {
+  const [counts, setCounts] = useState({ books: null, authors: null });
+
+  useEffect(() => {
+    let aborted = false;
+    (async () => {
+      try {
+        const [books, authors] = await Promise.all([
+          // List all books (search with no filters)
+          CatalogAPI.searchBooks({}).catch(() => []),
+          // List all authors
+          api.request("/authors").catch(() => []),
+        ]);
+        if (!aborted) {
+          setCounts({
+            books: Array.isArray(books) ? books.length : 0,
+            authors: Array.isArray(authors) ? authors.length : 0,
+          });
+        }
+      } catch {
+        if (!aborted) setCounts({ books: 0, authors: 0 });
+      }
+    })();
+    return () => {
+      aborted = true;
+    };
+  }, []);
   return (
     <>
       {/* Hero */}
@@ -40,10 +67,20 @@ const Home = () => {
             <div className="relative rounded-xl border border-gray-200 bg-white/70 p-6 shadow-sm backdrop-blur">
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { label: "Books", value: "12,480" },
-                  { label: "Authors", value: "3,120" },
-                  { label: "Active Loans", value: "214" },
-                  { label: "Overdue", value: "17" },
+                  {
+                    label: "Books",
+                    value:
+                      counts.books === null
+                        ? "—"
+                        : counts.books.toLocaleString(),
+                  },
+                  {
+                    label: "Authors",
+                    value:
+                      counts.authors === null
+                        ? "—"
+                        : counts.authors.toLocaleString(),
+                  },
                 ].map((s) => (
                   <div key={s.label} className="rounded-lg bg-gray-50 p-4">
                     <p className="text-sm text-gray-500">{s.label}</p>
@@ -52,9 +89,6 @@ const Home = () => {
                     </p>
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 rounded-md bg-blue-50 p-4 text-sm text-blue-700">
-                Real-time stats coming soon, powered by the LibroTrack API.
               </div>
             </div>
           </div>

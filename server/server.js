@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { getConnection } = require("./db");
 const { runMigrations } = require("./migrationRunner");
 const app = express();
@@ -8,6 +9,17 @@ const port = 3000;
 async function startServer() {
   // Fines API routes
   app.use(express.json());
+  // Allow client app to call the API directly in dev/preview
+  app.use(
+    cors({
+      origin: [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        process.env.CLIENT_ORIGIN || "",
+      ].filter(Boolean),
+      credentials: true,
+    })
+  );
 
   const finesRoutes = require("./routes/fines");
   app.use("/api/fines", finesRoutes);

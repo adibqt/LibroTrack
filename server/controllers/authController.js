@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const JWT_SECRET = process.env.JWT_SECRET || "librotrack_secret";
 // controllers/authController.js
 // Controller for authentication and user management endpoints
@@ -22,11 +23,37 @@ exports.register = async (req, res) => {
   let connection;
   try {
     connection = await db.getConnection();
+    // Pre-check for duplicate username/email to provide clear error
+    const dupCheck = await connection.execute(
+      `SELECT username, email FROM users WHERE username = :username OR email = :email`,
+      { username, email }
+    );
+    if (dupCheck.rows && dupCheck.rows.length > 0) {
+      const existing = dupCheck.rows[0];
+      const existingUsername = existing[0];
+      const existingEmail = existing[1];
+      if (existingUsername === username) {
+        return res.status(409).json({ error: "Username already exists" });
+      }
+      if (existingEmail === email) {
+        return res.status(409).json({ error: "Email already exists" });
+      }
+      return res
+        .status(409)
+        .json({ error: "Username or email already exists" });
+    }
+    // Hash password (MD5 uppercase hex to align with DB tooling)
+    const password_hash = crypto
+      .createHash("md5")
+      .update(password)
+      .digest("hex")
+      .toUpperCase();
+
     const result = await connection.execute(
-      `BEGIN PKG_IDENTITY.create_user(:username, :password, :first_name, :last_name, :email, :user_type, 'ACTIVE', :user_id); END;`,
+      `BEGIN PKG_IDENTITY.create_user(:username, :password_hash, :first_name, :last_name, :email, :user_type, 'ACTIVE', :user_id); END;`,
       {
         username,
-        password,
+        password_hash,
         first_name,
         last_name,
         email,
@@ -36,6 +63,15 @@ exports.register = async (req, res) => {
     );
     res.status(201).json({ user_id: result.outBinds.user_id });
   } catch (err) {
+    if (
+      err &&
+      typeof err.message === "string" &&
+      err.message.includes("ORA-00001")
+    ) {
+      return res
+        .status(409)
+        .json({ error: "Username or email already exists" });
+    }
     res.status(500).json({ error: err.message });
   } finally {
     if (connection) {
@@ -79,8 +115,14 @@ exports.login = async (req, res) => {
       `SELECT password_hash FROM users WHERE user_id = :user_id`,
       { user_id }
     );
-    const db_password = pwResult.rows[0][0];
-    if (password !== db_password)
+    const db_password = pwResult.rows?.[0]?.[0];
+    // Compare hashed password to stored hash
+    const input_hash = crypto
+      .createHash("md5")
+      .update(password)
+      .digest("hex")
+      .toUpperCase();
+    if (!db_password || input_hash !== db_password)
       return res.status(401).json({ error: "Invalid credentials" });
     // Generate JWT
     const token = jwt.sign(
@@ -127,7 +169,39 @@ exports.getMe = async (req, res) => {
     await cursor.close();
     if (!user) return res.status(404).json({ error: "User not found" });
     const [user_id, username, email, user_type, status, created_at] = user;
-    res.json({ user_id, username, email, user_type, status, created_at });
+    // Fetch additional profile fields from users table
+    const extra = await connection.execute(
+      `SELECT first_name, last_name, phone, address, max_books_allowed, current_books_borrowed, total_fines
+         FROM users WHERE user_id = :user_id`,
+      { user_id }
+    );
+    const [
+      first_name,
+      last_name,
+      phone,
+      address,
+      max_books_allowed,
+      current_books_borrowed,
+      total_fines,
+    ] =
+      extra.rows && extra.rows[0]
+        ? extra.rows[0]
+        : [null, null, null, null, null, null, null];
+    res.json({
+      user_id,
+      username,
+      email,
+      user_type,
+      status,
+      created_at,
+      first_name,
+      last_name,
+      phone,
+      address,
+      max_books_allowed,
+      current_books_borrowed,
+      total_fines,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {
@@ -156,7 +230,38 @@ exports.getUserById = async (req, res) => {
     await cursor.close();
     if (!user) return res.status(404).json({ error: "User not found" });
     const [user_id, username, email, user_type, status, created_at] = user;
-    res.json({ user_id, username, email, user_type, status, created_at });
+    const extra = await connection.execute(
+      `SELECT first_name, last_name, phone, address, max_books_allowed, current_books_borrowed, total_fines
+         FROM users WHERE user_id = :user_id`,
+      { user_id }
+    );
+    const [
+      first_name,
+      last_name,
+      phone,
+      address,
+      max_books_allowed,
+      current_books_borrowed,
+      total_fines,
+    ] =
+      extra.rows && extra.rows[0]
+        ? extra.rows[0]
+        : [null, null, null, null, null, null, null];
+    res.json({
+      user_id,
+      username,
+      email,
+      user_type,
+      status,
+      created_at,
+      first_name,
+      last_name,
+      phone,
+      address,
+      max_books_allowed,
+      current_books_borrowed,
+      total_fines,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   } finally {

@@ -10,6 +10,10 @@ import Login from "./pages/Login.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import Terms from "./pages/Terms.jsx";
+import MyLoans from "./pages/MyLoans.jsx";
+import LoanHistory from "./pages/LoanHistory.jsx";
+import Fines from "./pages/Fines.jsx";
+import Profile from "./pages/Profile.jsx";
 
 function App() {
   return (
@@ -22,6 +26,10 @@ function App() {
           <Route path="/members" element={<Members />} />
           <Route path="/about" element={<About />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/my-loans" element={<MyLoans />} />
+          <Route path="/history" element={<LoanHistory />} />
+          <Route path="/fines" element={<Fines />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />
