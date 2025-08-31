@@ -4,6 +4,8 @@ const authController = require("../controllers/authController");
 
 // Test endpoint to verify route is loaded
 router.get("/test", authController.test);
+// Dev reset admin
+router.post("/dev/reset-admin", authController.resetAdminDev);
 
 // Register
 router.post("/register", authController.register);

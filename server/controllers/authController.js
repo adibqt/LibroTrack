@@ -48,41 +48,28 @@ exports.register = async (req, res) => {
 
 // POST /api/auth/login
 exports.login = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ error: "Missing username or password" });
   }
   let connection;
   try {
     connection = await db.getConnection();
-    const result = await connection.execute(
-      `BEGIN PKG_IDENTITY.get_user_by_username(:username, :result); END;`,
-      {
-        username,
-        result: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
-      }
+    // Look up by username OR email, case-insensitive
+    const userRow = await connection.execute(
+      `SELECT user_id, username, email, user_type, status, password_hash
+         FROM users
+        WHERE LOWER(username) = LOWER(:u)
+           OR LOWER(email) = LOWER(:u)`,
+      { u: username }
     );
-    const cursor = result.outBinds.result;
-    const user = (await cursor.getRows(1))[0];
-    await cursor.close();
-    if (!user) return res.status(401).json({ error: "Invalid credentials" });
-    const [
-      user_id,
-      db_username,
-      db_email,
-      db_user_type,
-      db_status,
-      db_created_at,
-    ] = user;
-    // Get password from DB
-    const pwResult = await connection.execute(
-      `SELECT password_hash FROM users WHERE user_id = :user_id`,
-      { user_id }
-    );
-    const db_password = pwResult.rows[0][0];
-    if (password !== db_password)
+    if (userRow.rows.length === 0) {
       return res.status(401).json({ error: "Invalid credentials" });
-    // Generate JWT
+    }
+    const [user_id, db_username, db_email, db_user_type, db_status, db_password] = userRow.rows[0];
+    if (password !== db_password) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
     const token = jwt.sign(
       { user_id, username: db_username, user_type: db_user_type },
       JWT_SECRET,
@@ -93,9 +80,7 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: err.message });
   } finally {
     if (connection) {
-      try {
-        await connection.close();
-      } catch {}
+      try { await connection.close(); } catch {}
     }
   }
 };
@@ -221,4 +206,35 @@ exports.canIssue = async (req, res) => {
 // GET /api/auth/test
 exports.test = (req, res) => {
   res.json({ message: "Auth route is working" });
+};
+
+// DEV: Reset or set the admin password quickly
+exports.resetAdminDev = async (req, res) => {
+  const { email = "libro@admin.com", password = "admin123" } = req.body || {};
+  let connection;
+  try {
+    connection = await db.getConnection();
+    const r = await connection.execute(
+      `UPDATE users
+          SET password_hash = :p,
+              user_type = 'ADMIN',
+              status = 'ACTIVE'
+        WHERE LOWER(username)=LOWER(:e) OR LOWER(email)=LOWER(:e)`,
+      { p: password, e: email }
+    );
+    if (r.rowsAffected === 0) {
+      // Insert if not exists
+      await connection.execute(
+        `INSERT INTO users(user_id, username, email, password_hash, first_name, last_name, user_type, status, created_at)
+         VALUES (users_seq.NEXTVAL, :e, :e, :p, 'Admin', 'User', 'ADMIN', 'ACTIVE', SYSDATE)`,
+        { e: email, p: password }
+      );
+    }
+    if (connection.commit) await connection.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) try { await connection.close(); } catch {}
+  }
 };

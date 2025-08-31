@@ -1,12 +1,14 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const { getConnection } = require("./db");
 const { runMigrations } = require("./migrationRunner");
 const app = express();
 const port = 3000;
 
 async function startServer() {
-  // Fines API routes
+  // Middlewares
+  app.use(cors());
   app.use(express.json());
 
   const finesRoutes = require("./routes/fines");
@@ -76,6 +78,43 @@ async function startServer() {
       );
       await conn.close();
       res.json(r.rows.map((row) => row[0]));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DEV ONLY: Inspect a user by username/email
+  app.get("/db/user", async (req, res) => {
+    const u = (req.query.u || "").toString();
+    if (!u) return res.status(400).json({ error: "Missing ?u=" });
+    try {
+      const conn = await getConnection();
+      const r = await conn.execute(
+        `SELECT user_id, username, email, user_type, status, password_hash
+           FROM users
+          WHERE LOWER(username)=LOWER(:u) OR LOWER(email)=LOWER(:u)`,
+        { u }
+      );
+      await conn.close();
+      res.json(r.rows);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DEV ONLY: Reset password_hash for a user
+  app.post("/db/user/reset-password", async (req, res) => {
+    try {
+      const { u, password } = req.body || {};
+      if (!u || !password) return res.status(400).json({ error: "u and password required" });
+      const conn = await getConnection();
+      const r = await conn.execute(
+        `UPDATE users SET password_hash = :p WHERE LOWER(username)=LOWER(:u) OR LOWER(email)=LOWER(:u)`,
+        { p: password, u }
+      );
+      if (conn.commit) await conn.commit();
+      await conn.close();
+      res.json({ updated: r.rowsAffected || 0 });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
