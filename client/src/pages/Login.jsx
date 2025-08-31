@@ -22,7 +22,6 @@ const Login = () => {
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [userType, setUserType] = useState("MEMBER");
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -48,7 +47,7 @@ const Login = () => {
           first_name: firstName,
           last_name: lastName,
           email,
-          user_type: userType,
+          user_type: "MEMBER",
         });
         setNotice("Account created. Signing you in...");
         // Auto-login after successful registration
@@ -240,19 +239,6 @@ const Login = () => {
                       className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="••••••••"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-700">
-                      Account type
-                    </label>
-                    <select
-                      value={userType}
-                      onChange={(e) => setUserType(e.target.value)}
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="MEMBER">Member</option>
-                      <option value="ADMIN">Admin</option>
-                    </select>
                   </div>
                   <label className="inline-flex items-start gap-2 text-xs text-gray-600">
                     <input
