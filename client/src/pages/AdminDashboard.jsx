@@ -17,12 +17,18 @@ export default function AdminDashboard() {
             {/* Left: Brand (same as public header) */}
             <div className="absolute left-0">
               <Link to="/" className="flex items-center gap-2">
-                <div className="grid h-9 w-9 place-items-center rounded bg-blue-600 font-bold text-white">LT</div>
-                <span className="text-lg font-semibold text-gray-900">LibroTrack</span>
+                <div className="grid h-9 w-9 place-items-center rounded bg-blue-600 font-bold text-white">
+                  LT
+                </div>
+                <span className="text-lg font-semibold text-gray-900">
+                  LibroTrack
+                </span>
               </Link>
             </div>
             {/* Center title */}
-            <h1 className="text-lg font-semibold text-slate-900">Admin Dashboard</h1>
+            <h1 className="text-lg font-semibold text-slate-900">
+              Admin Dashboard
+            </h1>
             {/* Right: logout */}
             <div className="absolute right-0">
               <button
@@ -43,7 +49,8 @@ export default function AdminDashboard() {
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Welcome</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Use the tools below to manage your library’s catalog and operations.
+                Use the tools below to manage your library’s catalog and
+                operations.
               </p>
             </div>
             {/* Action slot intentionally empty to keep focus on tiles */}
@@ -54,44 +61,88 @@ export default function AdminDashboard() {
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {/* Primary tile becomes a Book Management button */}
             <button
-              onClick={() => navigate('/admin/books')}
+              onClick={() => navigate("/admin/books")}
               className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-left shadow-sm transition hover:border-blue-300 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-300"
             >
-              <div className="text-xs uppercase tracking-wide text-blue-700">Catalog</div>
-              <div className="mt-1 text-2xl font-semibold text-blue-900">Book Management</div>
-              <div className="text-sm text-blue-800/80 leading-tight">Create, edit, and organize your collection.</div>
+              <div className="text-xs uppercase tracking-wide text-blue-700">
+                Catalog
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-blue-900">
+                Book Management
+              </div>
+              <div className="text-sm text-blue-800/80 leading-tight">
+                Create, edit, and organize your collection.
+              </div>
             </button>
             <button
-              onClick={() => navigate('/admin/members')}
+              onClick={() => navigate("/admin/authors")}
+              className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-left shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            >
+              <div className="text-xs uppercase tracking-wide text-indigo-700">
+                Catalog
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-indigo-900">
+                Author Management
+              </div>
+              <div className="text-sm text-indigo-800/80 leading-tight">
+                Create authors and view their books.
+              </div>
+            </button>
+            <button
+              onClick={() => navigate("/admin/members")}
               className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300"
             >
-              <div className="text-xs uppercase tracking-wide text-emerald-700">Members</div>
-              <div className="mt-1 text-2xl font-semibold text-emerald-900">Member Management</div>
-              <div className="text-sm text-emerald-800/80 leading-tight">View profiles, limits, and histories.</div>
+              <div className="text-xs uppercase tracking-wide text-emerald-700">
+                Members
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-emerald-900">
+                Member Management
+              </div>
+              <div className="text-sm text-emerald-800/80 leading-tight">
+                View profiles, limits, and histories.
+              </div>
             </button>
             <button
-              onClick={() => navigate('/admin/operations')}
+              onClick={() => navigate("/admin/operations")}
               className="rounded-xl border border-purple-200 bg-purple-50 p-4 text-left shadow-sm transition hover:border-purple-300 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-300"
             >
-              <div className="text-xs uppercase tracking-wide text-purple-700">Operations</div>
-              <div className="mt-1 text-2xl font-semibold text-purple-900">Reservations & Loans</div>
-              <div className="text-sm text-purple-800/80 leading-tight">Manage reservations and loan operations.</div>
+              <div className="text-xs uppercase tracking-wide text-purple-700">
+                Operations
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-purple-900">
+                Reservations & Loans
+              </div>
+              <div className="text-sm text-purple-800/80 leading-tight">
+                Manage reservations and loan operations.
+              </div>
             </button>
             <button
-              onClick={() => navigate('/admin/fines')}
+              onClick={() => navigate("/admin/fines")}
               className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300"
             >
-              <div className="text-xs uppercase tracking-wide text-amber-700">Finance</div>
-              <div className="mt-1 text-2xl font-semibold text-amber-900">Fine Management</div>
-              <div className="text-sm text-amber-800/80 leading-tight">List, create, settle, and waive fines.</div>
+              <div className="text-xs uppercase tracking-wide text-amber-700">
+                Finance
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-amber-900">
+                Fine Management
+              </div>
+              <div className="text-sm text-amber-800/80 leading-tight">
+                List, create, settle, and waive fines.
+              </div>
             </button>
             <button
-              onClick={() => navigate('/admin/reports')}
+              onClick={() => navigate("/admin/reports")}
               className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-left shadow-sm transition hover:border-rose-300 hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-300"
             >
-              <div className="text-xs uppercase tracking-wide text-rose-700">Analytics</div>
-              <div className="mt-1 text-2xl font-semibold text-rose-900">Reports</div>
-              <div className="text-sm text-rose-800/80 leading-tight">View insights and analytics for operations.</div>
+              <div className="text-xs uppercase tracking-wide text-rose-700">
+                Analytics
+              </div>
+              <div className="mt-1 text-2xl font-semibold text-rose-900">
+                Reports
+              </div>
+              <div className="text-sm text-rose-800/80 leading-tight">
+                View insights and analytics for operations.
+              </div>
             </button>
           </div>
         </section>

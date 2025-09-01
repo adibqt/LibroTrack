@@ -21,6 +21,7 @@ import AdminMemberManager from "./pages/AdminMemberManager.jsx";
 import AdminOperations from "./pages/AdminOperations.jsx";
 import AdminFines from "./pages/AdminFines.jsx";
 import AdminReports from "./pages/AdminReports.jsx";
+import AdminAuthors from "./pages/AdminAuthors.jsx";
 import { isAdmin } from "./lib/auth.js";
 
 function PublicLayout() {
@@ -105,6 +106,14 @@ export default function App() {
         element={
           <Private>
             <AdminReports />
+          </Private>
+        }
+      />
+      <Route
+        path="/admin/authors"
+        element={
+          <Private>
+            <AdminAuthors />
           </Private>
         }
       />

@@ -309,6 +309,31 @@ export const ReservationsAPI = {
     }),
 };
 
+// Authors API (admin helpers)
+export const AuthorsAPI = {
+  list: () => request(`/authors`),
+  create: ({ first_name, last_name }, token) =>
+    request(`/authors`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify({ first_name, last_name }),
+    }),
+  get: (id) => request(`/authors/${id}`),
+  update: (id, { first_name, last_name }, token) =>
+    request(`/authors/${id}`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: JSON.stringify({ first_name, last_name }),
+    }),
+  remove: (id, token) =>
+    request(`/authors/${id}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    }),
+  // GET /api/authors/:authorId/books
+  getBooks: (authorId) => request(`/authors/${authorId}/books`),
+};
+
 export default {
   request,
   AuthAPI,
@@ -318,4 +343,5 @@ export default {
   CategoriesAPI,
   MembersAPI,
   ReservationsAPI,
+  AuthorsAPI,
 };
